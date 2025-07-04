@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { mockServices, mockIncidentTimeline } from "../lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
@@ -7,13 +7,14 @@ import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext
 import { Separator } from "@/components/ui/separator";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from 'sonner';
-
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 const statusColors: Record<string, string> = {
   operational: "bg-green-500",
   partial_outage: "bg-yellow-500",
@@ -37,6 +38,13 @@ const updateStatusColors: Record<string, string> = {
   // Add more as needed
 };
 
+const statusIcons = {
+  resolved: <CheckCircle2 className="text-green-600 w-4 h-4 mr-1" />,
+  monitoring: <Eye className="text-blue-600 w-4 h-4 mr-1" />,
+  identified: <AlertTriangle className="text-yellow-500 w-4 h-4 mr-1" />,
+  investigating: <Clock className="text-gray-500 w-4 h-4 mr-1" />
+};
+
 const ServicesPage: React.FC = () => {
   const params = useParams();
   const navigate = useNavigate();
@@ -51,6 +59,17 @@ const ServicesPage: React.FC = () => {
   const [newIncidentName, setNewIncidentName] = React.useState("");
   const [newIncidentDesc, setNewIncidentDesc] = React.useState("");
   const [incidentsState, setIncidentsState] = React.useState(mockIncidentTimeline);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState<any>(null);
+  const [localUpdates, setLocalUpdates] = useState<any[]>([]);
+  const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
+  const [editUpdateDesc, setEditUpdateDesc] = useState("");
+  const [editUpdateStatus, setEditUpdateStatus] = useState<string>("");
+  const [newUpdateDesc, setNewUpdateDesc] = useState("");
+  const [newUpdateStatus, setNewUpdateStatus] = useState<string>("");
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const [leftColHeight, setLeftColHeight] = useState<number | undefined>(undefined);
+
 
   // Listen for carousel slide changes and update selectedIdx
   React.useEffect(() => {
@@ -102,6 +121,59 @@ const ServicesPage: React.FC = () => {
     setNewIncidentName("");
     setNewIncidentDesc("");
   };
+
+  // Edit/update logic (copied from dashboard.tsx)
+  const handleIncidentClick = (incident: any) => {
+    setSelectedIncident(incident);
+    setLocalUpdates(incident.updates);
+    setDrawerOpen(true);
+  };
+
+  const handleEditUpdate = (idx: number, update: any) => {
+    setEditingUpdateIdx(idx);
+    setEditUpdateDesc(update.message);
+    setEditUpdateStatus(update.status);
+  };
+  const handleCancelEdit = () => {
+    setEditingUpdateIdx(null);
+    setEditUpdateDesc("");
+    setEditUpdateStatus("");
+  };
+  const handleSaveEdit = (idx: number) => {
+    setLocalUpdates(prev => {
+      let updates = [...prev];
+      // Only one resolved allowed
+      if (editUpdateStatus === 'resolved') {
+        updates = updates.map((u, i) => i !== idx && u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
+      }
+      updates[idx] = { ...updates[idx], message: editUpdateDesc, status: editUpdateStatus };
+      return updates;
+    });
+    setEditingUpdateIdx(null);
+    setEditUpdateDesc("");
+    setEditUpdateStatus("");
+    toast.success('Update edited!');
+  };
+  const handleSaveUpdate = () => {
+    if (!newUpdateDesc || !newUpdateStatus) return;
+    const newUpdate = {
+      message: newUpdateDesc,
+      status: newUpdateStatus,
+      timestamp: new Date().toISOString()
+    };
+    setLocalUpdates(prev => {
+      let updates = [...prev];
+      if (newUpdateStatus === 'resolved') {
+        updates = updates.map(u => u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
+      }
+      return [...updates, newUpdate];
+    });
+    setSelectedIncident((prev: any) => prev ? { ...prev, status: newUpdateStatus } : prev);
+    setNewUpdateDesc("");
+    setNewUpdateStatus("");
+    toast.success('Update added!');
+  };
+  const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
 
   if (!service) {
     return <div className="p-6">Service not found.</div>;
@@ -234,9 +306,11 @@ const ServicesPage: React.FC = () => {
             <h1 className="text-lg font-semibold flex-shrink-0">Incidents for this Service</h1>
             <Dialog open={incidentDialogOpen} onOpenChange={setIncidentDialogOpen}>
               <DialogTrigger asChild>
+              <SignedIn>
                 <Button variant="secondary" onClick={() => setIncidentDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> Add Incident
                 </Button>
+              </SignedIn>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -286,10 +360,14 @@ const ServicesPage: React.FC = () => {
               <p className="text-muted-foreground">No incidents found for this service.</p>
             ) : (
               <div className="space-y-4">
-                {incidents.map((incident) => (
+                {incidents.map((incident, idx) => (
                   <Card key={incident.id} className="hover:shadow-md transition">
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between">
                       <CardTitle>{incident.title}</CardTitle>
+                      <Button size="icon" variant="ghost" onClick={() => handleIncidentClick(incident)}>
+                        <span className="sr-only">Edit</span>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                     </CardHeader>
                     <CardContent>
                       <p className="text-xs text-muted-foreground mb-2">Created: {new Date(incident.created_at).toLocaleString()}</p>
@@ -321,6 +399,142 @@ const ServicesPage: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Drawer for editing incidents */}
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Incident Details</DrawerTitle>
+            <DrawerDescription>
+              {selectedIncident && (
+                <>
+                  <div className="font-semibold text-lg mb-1">{selectedIncident.title}</div>
+                  <div className="text-xs text-muted-foreground mb-2">Created: {new Date(selectedIncident.created_at).toLocaleString()}</div>
+                </>
+              )}
+            </DrawerDescription>
+          </DrawerHeader>
+          {selectedIncident && (
+            <div className="px-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Add Update Form (disabled if resolved) */}
+                <div className="border rounded-lg p-4 w-full md:w-1/2">
+                  <div className="font-semibold mb-2">Add Update</div>
+                  {isResolved ? (
+                    <div className="text-sm text-muted-foreground">No further updates can be added after resolution.</div>
+                  ) : (
+                    <>
+                      <textarea
+                        className="w-full border rounded p-2 mb-2 text-sm"
+                        rows={2}
+                        placeholder="Update description..."
+                        value={newUpdateDesc}
+                        onChange={e => setNewUpdateDesc(e.target.value)}
+                      />
+                      <Select value={newUpdateStatus} onValueChange={setNewUpdateStatus}>
+                        <SelectTrigger className="w-full mb-2">
+                          <SelectValue placeholder="Select update status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="investigating">Investigating</SelectItem>
+                          <SelectItem value="identified">Identified</SelectItem>
+                          <SelectItem value="monitoring">Monitoring</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="flex justify-end">
+                        <Button size="sm" onClick={handleSaveUpdate} disabled={!newUpdateDesc || !newUpdateStatus}>Save</Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {/* Updates Timeline */}
+                <div className="border rounded-lg p-4 w-full md:w-1/2">
+                  <div className="font-semibold mb-2">Updates Timeline</div>
+                  <div className="space-y-2 h-40 overflow-y-auto">
+                    {[...localUpdates].slice().reverse().map((u, i, arr) => {
+                      // Find the real index in localUpdates
+                      const realIdx = localUpdates.length - 1 - i;
+                      const isEditing = editingUpdateIdx === realIdx;
+                      return (
+                        <div key={i} className={`border rounded-md p-3 flex flex-col gap-2 ${u.status === 'resolved' ? 'bg-green-100' : ''}`}>
+                          {isEditing ? (
+                            u.status === 'created' ? (
+                              <>
+                                <textarea
+                                  className="w-full border rounded p-2 mb-2 text-sm bg-gray-100 cursor-not-allowed"
+                                  rows={2}
+                                  value={editUpdateDesc}
+                                  readOnly
+                                />
+                                <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus} disabled>
+                                  <SelectTrigger className="w-full mb-2">
+                                    <SelectValue placeholder="Created" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="created">Created</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <div className="flex gap-2 justify-end">
+                                  <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <textarea
+                                  className="w-full border rounded p-2 mb-2 text-sm"
+                                  rows={2}
+                                  value={editUpdateDesc}
+                                  onChange={e => setEditUpdateDesc(e.target.value)}
+                                />
+                                <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus}>
+                                  <SelectTrigger className="w-full mb-2">
+                                    <SelectValue placeholder="Select update status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="investigating">Investigating</SelectItem>
+                                    <SelectItem value="identified">Identified</SelectItem>
+                                    <SelectItem value="monitoring">Monitoring</SelectItem>
+                                    <SelectItem value="resolved">Resolved</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <div className="flex gap-2 justify-end">
+                                  <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                                  <Button size="sm" onClick={() => handleSaveEdit(realIdx)} disabled={!editUpdateDesc || !editUpdateStatus}>Save</Button>
+                                </div>
+                              </>
+                            )
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start">
+                                  <span className="mt-0.5">{statusIcons[u.status as keyof typeof statusIcons]}</span>
+                                  <p className="text-sm ml-2 max-w-xl">{u.message}</p>
+                                </div>
+                                <Button size="icon" variant="ghost" onClick={() => handleEditUpdate(realIdx, u)}>
+                                  <span className="sr-only">Edit</span>
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                                {new Date(u.timestamp).toLocaleString()}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DrawerFooter>
+            <DrawerClose asChild>
+              <Button variant="outline">Close</Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };
