@@ -56,40 +56,38 @@ const DashboardPage: React.FC = () => {
   const [timeline, setTimeline] = useState<typeof mockIncidentTimeline | null>(null);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
-  const [incidentPage, setIncidentPage] = useState(1);
-  const INCIDENTS_PER_PAGE = 3;
-  const [chartRange, setChartRange] = useState("7d");
-  const [activeServiceFilter, setActiveServiceFilter] = useState<string>("all");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedIncident, setSelectedIncident] = useState<any>(null);
-  const [newUpdateDesc, setNewUpdateDesc] = useState("");
-  const [newUpdateStatus, setNewUpdateStatus] = useState<string>("");
-  const [localUpdates, setLocalUpdates] = useState<any[]>([]);
-  const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
-  const [editUpdateDesc, setEditUpdateDesc] = useState("");
-  const [editUpdateStatus, setEditUpdateStatus] = useState<string>("");
-  const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
-  const [newIncidentName, setNewIncidentName] = useState("");
-  const [newIncidentService, setNewIncidentService] = useState("");
-  const [newIncidentDesc, setNewIncidentDesc] = useState("");
-  const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServiceDesc, setNewServiceDesc] = useState("");
-  const [newServiceStatus, setNewServiceStatus] = useState("");
-  const [newServiceLink, setNewServiceLink] = useState("");
+    const [incidentPage, setIncidentPage] = useState(1);
+    const INCIDENTS_PER_PAGE = 3;
+    const [chartRange, setChartRange] = useState("7d");
+    const [activeServiceFilter, setActiveServiceFilter] = useState<string>("all");
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [selectedIncident, setSelectedIncident] = useState<any>(null);
+    const [newUpdateDesc, setNewUpdateDesc] = useState("");
+    const [newUpdateStatus, setNewUpdateStatus] = useState<string>("");
+    const [localUpdates, setLocalUpdates] = useState<any[]>([]);
+    const [editingUpdateIdx, setEditingUpdateIdx] = useState<number | null>(null);
+    const [editUpdateDesc, setEditUpdateDesc] = useState("");
+    const [editUpdateStatus, setEditUpdateStatus] = useState<string>("");
+    const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
+    const [newIncidentName, setNewIncidentName] = useState("");
+    const [newIncidentService, setNewIncidentService] = useState("");
+    const [newIncidentDesc, setNewIncidentDesc] = useState("");
+    const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
+    const [newServiceName, setNewServiceName] = useState("");
+    const [newServiceDesc, setNewServiceDesc] = useState("");
+    const [newServiceStatus, setNewServiceStatus] = useState("");
+    const [newServiceLink, setNewServiceLink] = useState("");
   const [scrolled, setScrolled] = useState(false);
 
-  const getServiceName = (id: number) => {
-    const source = services ?? mockServices;
-    const service = source.find(s => s.id === id);
-    return service ? service.name : "Unknown Service";
-  };
+    const getServiceName = (id: number) => {
+        const source = services ?? mockServices;
+        const service = source.find(s => s.id === id);
+        return service ? service.name : "Unknown Service";
+    };
 
   useEffect(() => {
-    setTimeout(() => {
-      setServices(mockServices);
-      setTimeline(mockIncidentTimeline);
-    }, 500);
+    setServices(mockServices);
+    setTimeline(mockIncidentTimeline);
   }, []);
 
   useEffect(() => {
@@ -102,170 +100,170 @@ const DashboardPage: React.FC = () => {
     service.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const sortedTimeline = timeline
-    ? [...timeline].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    : [];
+    const sortedTimeline = timeline
+        ? [...timeline].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        : [];
 
-  const paginatedTimeline = sortedTimeline
-    ? sortedTimeline.slice((incidentPage - 1) * INCIDENTS_PER_PAGE, incidentPage * INCIDENTS_PER_PAGE)
-    : [];
+    const paginatedTimeline = sortedTimeline
+        ? sortedTimeline.slice((incidentPage - 1) * INCIDENTS_PER_PAGE, incidentPage * INCIDENTS_PER_PAGE)
+        : [];
 
-  const activeIncidents = sortedTimeline.filter(inc => inc.status !== 'resolved');
+    const activeIncidents = sortedTimeline.filter(inc => inc.status !== 'resolved');
 
-  const filteredActiveIncidents = activeServiceFilter === "all"
-    ? activeIncidents
-    : activeIncidents.filter(inc => getServiceName(inc.serviceId) === activeServiceFilter);
+    const filteredActiveIncidents = activeServiceFilter === "all"
+        ? activeIncidents
+        : activeIncidents.filter(inc => getServiceName(inc.serviceId) === activeServiceFilter);
 
-  const groupedTimeline = paginatedTimeline.reduce((acc, incident) => {
+    const groupedTimeline = paginatedTimeline.reduce((acc, incident) => {
     const dateKey = format(parseISO(incident.created_at), "dd MMMM yyyy");
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(incident);
     return acc;
   }, {} as Record<string, typeof mockIncidentTimeline>);
 
-  const totalIncidentPages = timeline ? Math.ceil(timeline.length / INCIDENTS_PER_PAGE) : 1;
+    const totalIncidentPages = timeline ? Math.ceil(timeline.length / INCIDENTS_PER_PAGE) : 1;
 
-  const allServices = services ?? mockServices;
-  const allIncidents = timeline ?? mockIncidentTimeline;
+    const allServices = services ?? mockServices;
+    const allIncidents = timeline ?? mockIncidentTimeline;
 
-  const today = new Date();
-  let days = 90;
-  if (chartRange === "30d") days = 30;
-  if (chartRange === "7d") days = 7;
-  const startDate = subDays(today, days - 1);
+    const today = new Date();
+    let days = 90;
+    if (chartRange === "30d") days = 30;
+    if (chartRange === "7d") days = 7;
+    const startDate = subDays(today, days - 1);
 
-  const dateList: string[] = [];
-  for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) {
-    dateList.push(d.toISOString().slice(0, 10));
-  }
+    const dateList: string[] = [];
+    for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) {
+        dateList.push(d.toISOString().slice(0, 10));
+    }
 
-  const chartData = dateList.map(date => {
-    const entry: Record<string, any> = { date };
-    allServices.forEach(service => {
-      entry[service.name] = allIncidents.filter(
-        inc => inc.serviceId === service.id && inc.created_at.slice(0, 10) === date
-      ).length;
+    const chartData = dateList.map(date => {
+        const entry: Record<string, any> = { date };
+        allServices.forEach(service => {
+            entry[service.name] = allIncidents.filter(
+                inc => inc.serviceId === service.id && inc.created_at.slice(0, 10) === date
+            ).length;
+        });
+        return entry;
     });
-    return entry;
-  });
 
-  const chartConfig = Object.fromEntries(
-    allServices.map((service, idx) => [
-      service.name,
-      { label: service.name, color: `var(--chart-${idx + 1})` }
-    ])
-  );
+    const chartConfig = Object.fromEntries(
+        allServices.map((service, idx) => [
+            service.name,
+            { label: service.name, color: `var(--chart-${idx + 1})` }
+        ])
+    );
 
-  const handleIncidentClick = (incident: any) => {
-    setSelectedIncident(incident);
-    setLocalUpdates(incident.updates);
-    setDrawerOpen(true);
-  };
-
-  const handleSaveUpdate = () => {
-    if (!newUpdateDesc || !newUpdateStatus) return;
-    const newUpdate = {
-      message: newUpdateDesc,
-      status: newUpdateStatus,
-      timestamp: new Date().toISOString()
+    const handleIncidentClick = (incident: any) => {
+        setSelectedIncident(incident);
+        setLocalUpdates(incident.updates);
+        setDrawerOpen(true);
     };
-    setLocalUpdates(prev => {
-      let updates = [...prev];
-      if (newUpdateStatus === 'resolved') {
-        updates = updates.map(u => u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
-      }
-      return [...updates, newUpdate];
-    });
-    setSelectedIncident((prev: any) => prev ? { ...prev, status: newUpdateStatus } : prev);
-    setNewUpdateDesc("");
-    setNewUpdateStatus("");
-    toast.success('Update added!');
-  };
 
-  const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
-
-  const handleEditUpdate = (idx: number, update: any) => {
-    setEditingUpdateIdx(idx);
-    setEditUpdateDesc(update.message);
-    setEditUpdateStatus(update.status);
-  };
-  const handleCancelEdit = () => {
-    setEditingUpdateIdx(null);
-    setEditUpdateDesc("");
-    setEditUpdateStatus("");
-  };
-  const handleSaveEdit = (idx: number) => {
-    setLocalUpdates(prev => {
-      let updates = [...prev];
-      if (editUpdateStatus === 'resolved') {
-        updates = updates.map((u, i) => i !== idx && u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
-      }
-      updates[idx] = { ...updates[idx], message: editUpdateDesc, status: editUpdateStatus };
-      return updates;
-    });
-    setEditingUpdateIdx(null);
-    setEditUpdateDesc("");
-    setEditUpdateStatus("");
-    toast.success('Update edited!');
-  };
-
-  const handleCreateIncident = () => {
-    if (!newIncidentName || !newIncidentService) return;
-    const serviceObj = allServices.find(s => s.name === newIncidentService);
-    if (!serviceObj) return;
-    const newIncident = {
-      id: Date.now(),
-      title: newIncidentName,
-      status: 'investigating',
-      created_at: new Date().toISOString(),
-      serviceId: serviceObj.id,
-      updates: [
-        {
-          message: newIncidentDesc,
-          status: 'investigating',
-          timestamp: new Date().toISOString()
-        }
-      ]
+    const handleSaveUpdate = () => {
+        if (!newUpdateDesc || !newUpdateStatus) return;
+        const newUpdate = {
+            message: newUpdateDesc,
+            status: newUpdateStatus,
+            timestamp: new Date().toISOString()
+        };
+        setLocalUpdates(prev => {
+            let updates = [...prev];
+            if (newUpdateStatus === 'resolved') {
+                updates = updates.map(u => u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
+            }
+            return [...updates, newUpdate];
+        });
+        setSelectedIncident((prev: any) => prev ? { ...prev, status: newUpdateStatus } : prev);
+        setNewUpdateDesc("");
+        setNewUpdateStatus("");
+        toast.success('Update added!');
     };
-    setTimeline(prev => prev ? [newIncident, ...prev] : [newIncident]);
-    toast("Incident created", {
-      description: `Incident '${newIncidentName}' for service '${newIncidentService}' has been created.`
-    });
-    setIncidentDialogOpen(false);
-    setNewIncidentName("");
-    setNewIncidentService("");
-    setNewIncidentDesc("");
-  };
 
-  const handleCreateService = () => {
-    if (!newServiceName || !newServiceStatus) return;
-    const newService = {
-      id: Date.now(),
-      name: newServiceName,
-      description: newServiceDesc,
-      status: newServiceStatus,
-      uptime: "100.00%",
-      link: newServiceLink
+    const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
+
+    const handleEditUpdate = (idx: number, update: any) => {
+        setEditingUpdateIdx(idx);
+        setEditUpdateDesc(update.message);
+        setEditUpdateStatus(update.status);
     };
-    setServices(prev => prev ? [newService, ...prev] : [newService]);
-    toast("Service created", {
-      description: `Service '${newServiceName}' has been created.`
-    });
-    setServiceDialogOpen(false);
-    setNewServiceName("");
-    setNewServiceDesc("");
-    setNewServiceStatus("");
-    setNewServiceLink("");
-  };
+    const handleCancelEdit = () => {
+        setEditingUpdateIdx(null);
+        setEditUpdateDesc("");
+        setEditUpdateStatus("");
+    };
+    const handleSaveEdit = (idx: number) => {
+        setLocalUpdates(prev => {
+            let updates = [...prev];
+            if (editUpdateStatus === 'resolved') {
+                updates = updates.map((u, i) => i !== idx && u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
+            }
+            updates[idx] = { ...updates[idx], message: editUpdateDesc, status: editUpdateStatus };
+            return updates;
+        });
+        setEditingUpdateIdx(null);
+        setEditUpdateDesc("");
+        setEditUpdateStatus("");
+        toast.success('Update edited!');
+    };
+
+    const handleCreateIncident = () => {
+        if (!newIncidentName || !newIncidentService) return;
+        const serviceObj = allServices.find(s => s.name === newIncidentService);
+        if (!serviceObj) return;
+        const newIncident = {
+            id: Date.now(),
+            title: newIncidentName,
+            status: 'investigating',
+            created_at: new Date().toISOString(),
+            serviceId: serviceObj.id,
+            updates: [
+                {
+                    message: newIncidentDesc,
+                    status: 'investigating',
+                    timestamp: new Date().toISOString()
+                }
+            ]
+        };
+        setTimeline(prev => prev ? [newIncident, ...prev] : [newIncident]);
+        toast("Incident created", {
+            description: `Incident '${newIncidentName}' for service '${newIncidentService}' has been created.`
+        });
+        setIncidentDialogOpen(false);
+        setNewIncidentName("");
+        setNewIncidentService("");
+        setNewIncidentDesc("");
+    };
+
+    const handleCreateService = () => {
+        if (!newServiceName || !newServiceStatus) return;
+        const newService = {
+            id: Date.now(),
+            name: newServiceName,
+            description: newServiceDesc,
+            status: newServiceStatus,
+            uptime: "100.00%",
+            link: newServiceLink
+        };
+        setServices(prev => prev ? [newService, ...prev] : [newService]);
+        toast("Service created", {
+            description: `Service '${newServiceName}' has been created.`
+        });
+        setServiceDialogOpen(false);
+        setNewServiceName("");
+        setNewServiceDesc("");
+        setNewServiceStatus("");
+        setNewServiceLink("");
+    };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-900">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        <Toaster />
+            <Toaster />
         
         {/* Header Section */}
         <div
-          className={`sticky top-0 z-30 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
+          className={`sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-zinc-900/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -273,165 +271,152 @@ const DashboardPage: React.FC = () => {
                 <Activity className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Overview Dashboard</h1>
-                <p className="text-gray-600 text-sm sm:text-base mt-1">Monitor and manage your services and incidents</p>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                  Overview Dashboard
+                </h1>
+                <p className="text-zinc-500 dark:text-zinc-400">
+                  Monitor and manage your services and incidents
+                </p>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <OrgRoleBasedAccess allowedRoles={["admin"]}>
-                <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full sm:w-auto">
-                      <Plus className="mr-2 h-4 w-4" /> Create Service
-                    </Button>
-                  </DialogTrigger>
+                <OrgRoleBasedAccess allowedRoles={["admin"]}>
+                    <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+                        <DialogTrigger asChild>
+                    <Button className="bg-white text-black dark:bg-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                                <Plus className="mr-2 h-4 w-4" /> Create Service
+                            </Button>
+                        </DialogTrigger>
                   <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Create Service</DialogTitle>
-                      <DialogDescription>Fill in the details to create a new service.</DialogDescription>
-                    </DialogHeader>
+                            <DialogHeader>
+                                <DialogTitle>Create Service</DialogTitle>
+                                <DialogDescription>Fill in the details to create a new service.</DialogDescription>
+                            </DialogHeader>
                     <Separator />
-                    <div className="space-y-4 py-2">
-                      <div>
+                            <div className="space-y-4 py-2">
+                                <div>
                         <label className="block text-sm font-medium mb-2">Service Name</label>
-                        <input
+                                    <input
                           className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={newServiceName}
-                          onChange={e => setNewServiceName(e.target.value)}
-                          placeholder="Enter service name"
-                        />
-                      </div>
-                      <div>
+                                        value={newServiceName}
+                                        onChange={e => setNewServiceName(e.target.value)}
+                                        placeholder="Enter service name"
+                                    />
+                                </div>
+                                <div>
                         <label className="block text-sm font-medium mb-2">Description</label>
-                        <textarea
+                                    <textarea
                           className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}
-                          value={newServiceDesc}
-                          onChange={e => setNewServiceDesc(e.target.value)}
-                          placeholder="Describe the service (optional)"
-                        />
-                      </div>
-                      <div>
+                                        value={newServiceDesc}
+                                        onChange={e => setNewServiceDesc(e.target.value)}
+                                        placeholder="Describe the service (optional)"
+                                    />
+                                </div>
+                                <div>
                         <label className="block text-sm font-medium mb-2">Status</label>
-                        <Select value={newServiceStatus} onValueChange={setNewServiceStatus}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="operational">Operational</SelectItem>
-                            <SelectItem value="partial_outage">Partial Outage</SelectItem>
-                            <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
-                            <SelectItem value="major_outage">Major Outage</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
+                                    <Select value={newServiceStatus} onValueChange={setNewServiceStatus}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="operational">Operational</SelectItem>
+                                            <SelectItem value="partial_outage">Partial Outage</SelectItem>
+                                            <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
+                                            <SelectItem value="major_outage">Major Outage</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
                         <label className="block text-sm font-medium mb-2">Link</label>
-                        <input
+                                    <input
                           className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={newServiceLink}
-                          onChange={e => setNewServiceLink(e.target.value)}
-                          placeholder="https://example.com (optional)"
-                          type="url"
-                        />
-                      </div>
-                    </div>
+                                        value={newServiceLink}
+                                        onChange={e => setNewServiceLink(e.target.value)}
+                                        placeholder="https://example.com (optional)"
+                                        type="url"
+                                    />
+                                </div>
+                            </div>
                     <Separator />
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <Button onClick={handleCreateService} disabled={!newServiceName || !newServiceStatus}>Create</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <Dialog open={incidentDialogOpen} onOpenChange={setIncidentDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="secondary" className="w-full sm:w-auto">
-                      <Plus className="mr-2 h-4 w-4" /> Add Incident
-                    </Button>
-                  </DialogTrigger>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <Button onClick={handleCreateService} disabled={!newServiceName || !newServiceStatus}>Create</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    <Dialog open={incidentDialogOpen} onOpenChange={setIncidentDialogOpen}>
+                        <DialogTrigger asChild>
+                    <Button className="bg-white text-black dark:bg-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                                <Plus className="mr-2 h-4 w-4" /> Add Incident
+                            </Button>
+                        </DialogTrigger>
                   <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Create Incident</DialogTitle>
-                      <DialogDescription>Fill in the details to create a new incident.</DialogDescription>
-                    </DialogHeader>
+                            <DialogHeader>
+                                <DialogTitle>Create Incident</DialogTitle>
+                                <DialogDescription>Fill in the details to create a new incident.</DialogDescription>
+                            </DialogHeader>
                     <Separator />
-                    <div className="space-y-4 py-2">
-                      <div>
+                            <div className="space-y-4 py-2">
+                                <div>
                         <label className="block text-sm font-medium mb-2">Incident Name</label>
-                        <input
+                                    <input
                           className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={newIncidentName}
-                          onChange={e => setNewIncidentName(e.target.value)}
-                          placeholder="Enter incident name"
-                        />
-                      </div>
-                      <div>
+                                        value={newIncidentName}
+                                        onChange={e => setNewIncidentName(e.target.value)}
+                                        placeholder="Enter incident name"
+                                    />
+                                </div>
+                                <div>
                         <label className="block text-sm font-medium mb-2">Service</label>
-                        <Select value={newIncidentService} onValueChange={setNewIncidentService}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select service" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allServices.map(service => (
-                              <SelectItem key={service.id} value={service.name}>{service.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
+                                    <Select value={newIncidentService} onValueChange={setNewIncidentService}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select service" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {allServices.map(service => (
+                                                <SelectItem key={service.id} value={service.name}>{service.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
                         <label className="block text-sm font-medium mb-2">Description</label>
-                        <textarea
+                                    <textarea
                           className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}
-                          value={newIncidentDesc}
-                          onChange={e => setNewIncidentDesc(e.target.value)}
-                          placeholder="Describe the incident (optional)"
-                        />
-                      </div>
-                    </div>
+                                        value={newIncidentDesc}
+                                        onChange={e => setNewIncidentDesc(e.target.value)}
+                                        placeholder="Describe the incident (optional)"
+                                    />
+                                </div>
+                            </div>
                     <Separator />
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <Button onClick={handleCreateIncident} disabled={!newIncidentName || !newIncidentService}>Create</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </OrgRoleBasedAccess>
-            </div>
-          </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button variant="outline">Cancel</Button>
+                                </DialogClose>
+                                <Button onClick={handleCreateIncident} disabled={!newIncidentName || !newIncidentService}>Create</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                    </OrgRoleBasedAccess>
+                </div>
+      </div>
         </div>
 
         {/* Status Banner */}
         <div className="mb-8">
-          <div className={`rounded-lg px-6 py-4 shadow-sm border-l-4 flex items-center justify-between transition-all duration-300 ${
-            activeIncidents.length === 0 
-              ? 'bg-green-50 border-l-green-500 text-green-800' 
-              : 'bg-red-50 border-l-red-500 text-red-800'
-          }`}>
+          <div className={`rounded-xl px-6 py-4 shadow-sm border-l-4 flex items-center gap-4 transition-all duration-300 bg-red-50 dark:bg-red-900/40 border-l-red-500 text-red-800 dark:text-red-200`}>
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                activeIncidents.length === 0 ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-                {activeIncidents.length === 0 ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                ) : (
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
-                )}
+              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-800">
+                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-300" />
               </div>
               <div>
-                <div className="font-semibold">
-                  {activeIncidents.length === 0 ? 'All Systems Operational' : `${activeIncidents.length} Active Incident${activeIncidents.length > 1 ? 's' : ''}`}
-                </div>
-                <div className="text-sm opacity-75">
-                  {activeIncidents.length === 0 
-                    ? 'All services are running smoothly' 
-                    : 'Some services may be experiencing issues'
-                  }
-                </div>
+                <div className="font-semibold text-lg">7 Active Incidents</div>
+                <div className="text-sm opacity-75">Some services may be experiencing issues</div>
               </div>
             </div>
           </div>
@@ -439,65 +424,67 @@ const DashboardPage: React.FC = () => {
 
         {/* Services Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm dark:shadow-md border dark:border-zinc-700 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Services</h2>
-                <p className="text-gray-600 text-sm mt-1">Browse through available services</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">Services</h2>
+                <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">Browse through available services</p>
               </div>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search services..."
+      <Input
+        placeholder="Search services..."
                   className="pl-10 w-full sm:w-80 focus:ring-2 focus:ring-blue-500"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
               </div>
             </div>
 
-            {services ? (
-              filteredServices && filteredServices.length > 0 ? (
+      {services ? (
+        filteredServices && filteredServices.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredServices.map(service => (
-                    <Card
-                      key={service.id}
-                      onClick={() => navigate(`/services/${service.id}`)}
-                      className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-2 hover:border-blue-500 hover:bg-blue-50"
-                    >
+            {filteredServices.map(service => (
+              <Card
+                key={service.id}
+                onClick={() => navigate(`/services/${service.id}`)}
+                      className={`group hover:shadow-lg transition-all duration-300 cursor-pointer border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:border-blue-900 dark:hover:bg-blue-900 ${selectedIncident && selectedIncident.id === service.id ? "border-blue-500 bg-blue-50 dark:bg-blue-900" : "border-zinc-200 bg-white dark:bg-zinc-900"}`}
+              >
                       <CardHeader className="pb-3">
                         <CardTitle className="flex items-center justify-between text-base mb-2">
-                          <span className="truncate font-semibold group-hover:text-blue-600 transition-colors">{service.name}</span>
+                          <span className="truncate font-semibold group-hover:text-blue-600 transition-colors text-gray-900 dark:text-zinc-100">
+                    {service.name}
+                          </span>
                           <span className={`w-4 h-4 rounded-full ${statusColors[service.status]} shadow-lg ring-2 ring-white`} title={service.status.replace("_", " ")}></span>
-                        </CardTitle>
-                      </CardHeader>
+                  </CardTitle>
+                </CardHeader>
                       <CardContent className="space-y-3">
-                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
-                          {service.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 text-gray-900 dark:text-zinc-100">
+                    {service.description}
+                  </p>
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className={`${statusColors[service.status]} text-white font-medium text-xs shadow-sm`}>
                             {service.status.replace("_", " ")}
                           </Badge>
-                          <Badge variant="outline" className="font-medium text-xs bg-gray-50">
+                          <Badge variant="outline" className="font-medium text-xs bg-gray-50 text-black">
                             Uptime: {service.uptime}
                           </Badge>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Search className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-500">No services found matching your search.</p>
                 </div>
-              )
-            ) : (
+        )
+      ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...Array(3)].map((_, i) => (
+          {[...Array(3)].map((_, i) => (
                   <Card key={i} className="border-0 shadow-sm">
                     <CardHeader>
                       <Skeleton className="h-6 w-3/4" />
@@ -511,47 +498,49 @@ const DashboardPage: React.FC = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
+          ))}
+        </div>
+      )}
           </div>
         </div>
 
         <Separator className="my-8" />
-
+            
         {/* Active Incidents Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm dark:shadow-md border dark:border-zinc-700 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Active Incidents</h2>
-                <p className="text-gray-600 text-sm mt-1">Quick overview of ongoing incidents</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">Active Incidents</h2>
+                <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">Quick overview of ongoing incidents</p>
               </div>
-              <Select value={activeServiceFilter} onValueChange={setActiveServiceFilter}>
+                <Select value={activeServiceFilter} onValueChange={setActiveServiceFilter}>
                 <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="All Services" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Services</SelectItem>
-                  {allServices.map(service => (
-                    <SelectItem key={service.id} value={service.name}>{service.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                        <SelectValue placeholder="All Services" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Services</SelectItem>
+                        {allServices.map(service => (
+                            <SelectItem key={service.id} value={service.name}>{service.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             {filteredActiveIncidents.length > 0 ? (
               <div className="overflow-x-auto">
                 <div className="flex gap-4 pb-4 min-w-max">
-                  {filteredActiveIncidents.map((incident) => (
+                        {filteredActiveIncidents.map((incident) => (
                     <Card
-                      key={incident.id}
-                      className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-l-4 border-l-orange-500 bg-orange-50 min-w-[280px] max-w-[320px] flex-shrink-0"
-                      onClick={() => handleIncidentClick(incident)}
-                    >
+                                key={incident.id}
+                      className={
+                        `group hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500 bg-orange-50 dark:bg-zinc-800 min-w-[280px] max-w-[320px] flex-shrink-0`
+                      }
+                                onClick={() => handleIncidentClick(incident)}
+                            >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
-                          <CardTitle className="text-base leading-tight pr-2 font-semibold group-hover:text-orange-700 transition-colors line-clamp-2">
+                          <CardTitle className="text-base leading-tight pr-2 font-semibold group-hover:text-orange-700 transition-colors line-clamp-2 text-gray-900 dark:text-zinc-100">
                             {incident.title}
                           </CardTitle>
                          
@@ -559,18 +548,18 @@ const DashboardPage: React.FC = () => {
                       </CardHeader>
                       <CardContent className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs font-medium bg-gray-50">
+                          <Badge variant="outline" className="text-xs font-medium bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-zinc-100">
                             {getServiceName(incident.serviceId)}
                           </Badge>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground dark:text-zinc-400">
                             {new Date(incident.created_at).toLocaleDateString()}
                           </span>
                         </div>
                         
-                        {incident.updates && incident.updates.length > 0 && (
+                                {incident.updates && incident.updates.length > 0 && (
                           <div className="flex items-center gap-2">
                             {statusIcons[incident.updates[incident.updates.length - 1].status as keyof typeof statusIcons]}
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground dark:text-zinc-400">
                               {incident.updates[incident.updates.length - 1].status.replace('_', ' ')}
                             </span>
                           </div>
@@ -593,11 +582,11 @@ const DashboardPage: React.FC = () => {
 
         {/* Area Chart Section */}
         <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm dark:shadow-md border dark:border-zinc-700 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Incident Trends</h2>
-                <p className="text-gray-600 text-sm mt-1">Track incident patterns over time</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">Incident Trends</h2>
+                <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">Track incident patterns over time</p>
               </div>
               <div className="flex items-center gap-4">
                 <Select value={chartRange} onValueChange={setChartRange}>
@@ -630,16 +619,16 @@ const DashboardPage: React.FC = () => {
 
         {/* Incident Timeline */}
           <div className="mb-8">
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm dark:shadow-md border dark:border-zinc-700 p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Incident Timeline</h2>
-                  <p className="text-gray-600 text-sm mt-1">View all incidents chronologically</p>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">Incident Timeline</h2>
+                  <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">View all incidents chronologically</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Page {incidentPage} of {totalIncidentPages}</span>
-                </div>
-              </div>
+                                        </div>
+                                        </div>
 
               {groupedTimeline && Object.keys(groupedTimeline).length > 0 ? (
                 <div className="space-y-6">
@@ -649,30 +638,30 @@ const DashboardPage: React.FC = () => {
                       <div className="border-l-2 pl-6 space-y-6">
                         {incidents.map((incident) => (
                           <div key={incident.id} className="relative">
-                            <div className="absolute -left-[35px] top-0 w-6 h-6 bg-white flex items-center justify-center">
+                            <div className="absolute -left-[35px] top-0 w-6 h-6 bg-white dark:bg-zinc-900 flex items-center justify-center">
                               {statusIcons[incident.status as keyof typeof statusIcons]}
-                            </div>
-                            <div className="bg-muted p-4 rounded-md">
-                              <h3 className="font-semibold text-base">{incident.title}</h3>
-                              <p className="text-xs text-muted-foreground mb-1">Service: {getServiceName(incident.serviceId)}</p>
-                              <p className="text-xs text-muted-foreground mb-2">
+                                        </div>
+                            <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-md">
+                              <h3 className="font-semibold text-base text-gray-900 dark:text-zinc-100 leading-tight">{incident.title}</h3>
+                              <p className="text-xs text-muted-foreground dark:text-zinc-400 mb-1">Service: {getServiceName(incident.serviceId)}</p>
+                              <p className="text-xs text-muted-foreground dark:text-zinc-400 mb-2">
                                 {new Date(incident.created_at).toLocaleTimeString()}
                               </p>
                               <div className="space-y-2">
                                 {[...incident.updates].slice().reverse().map((u, i) => (
-                                  <div key={i} className={`border rounded-md p-3 flex items-start justify-between ${u.status === 'resolved' ? 'bg-green-100' : ''}`}>
+                                  <div key={i} className={`border rounded-md p-3 flex items-start justify-between ${u.status === 'resolved' ? 'bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200' : ''}`}>
                                     <div className="flex items-start">
                                       <div className="mt-0.5">{statusIcons[u.status as keyof typeof statusIcons]}</div>
-                                      <p className="text-sm ml-2 max-w-xl">{u.message}</p>
+                                      <p className="text-sm ml-2 max-w-xl text-gray-900 dark:text-zinc-100 leading-relaxed">{u.message}</p>
                                     </div>
-                                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                                    <span className="text-xs text-muted-foreground dark:text-zinc-400 whitespace-nowrap ml-4">
                                       {new Date(u.timestamp).toLocaleTimeString()}
                                     </span>
                                   </div>
                                 ))}
                               </div>
                             </div>
-                          </div>
+                            </div>
                         ))}
                       </div>
                     </div>
@@ -752,185 +741,11 @@ const DashboardPage: React.FC = () => {
                     >
                       Next
                     </Button>
-                  </div>
+                    </div>
                 </div>
-              )}
+            )}
             </div>
           </div>
-
-        {/* Incident Management Drawer */}
-        <OrgRoleBasedAccess allowedRoles={["admin"]}>
-          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <DrawerContent className="max-h-[90vh]">
-              <DrawerHeader className="border-b">
-                <DrawerTitle>Incident Management</DrawerTitle>
-                <DrawerDescription>
-                  {selectedIncident && (
-                    <div className="space-y-1">
-                      <div className="font-semibold text-lg">{selectedIncident.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Created: {new Date(selectedIncident.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                </DrawerDescription>
-              </DrawerHeader>
-              {selectedIncident && (
-                <div className="px-4 pb-4 overflow-y-auto">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
-                    {/* Add Update Form */}
-                    <Card className="h-fit shadow-sm">
-                      <CardHeader className="border-b">
-                        <CardTitle className="text-lg">Add Update</CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6">
-                        {isResolved ? (
-                          <div className="text-sm text-green-700 bg-green-50 p-4 rounded-lg border border-green-200">
-                            <CheckCircle2 className="w-5 h-5 inline mr-2" />
-                            This incident has been resolved. No further updates can be added.
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium mb-2">Update Description</label>
-                              <textarea
-                                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                rows={3}
-                                placeholder="Describe the update..."
-                                value={newUpdateDesc}
-                                onChange={e => setNewUpdateDesc(e.target.value)}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium mb-2">Status</label>
-                              <Select value={newUpdateStatus} onValueChange={setNewUpdateStatus}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select update status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="investigating">Investigating</SelectItem>
-                                  <SelectItem value="identified">Identified</SelectItem>
-                                  <SelectItem value="monitoring">Monitoring</SelectItem>
-                                  <SelectItem value="resolved">Resolved</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <Button 
-                              onClick={handleSaveUpdate} 
-                              disabled={!newUpdateDesc || !newUpdateStatus}
-                              className="w-full"
-                            >
-                              Add Update
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Updates Timeline */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="border-b">
-                        <CardTitle className="text-lg">Updates Timeline</CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-6">
-                        <div className="space-y-4 max-h-96 overflow-y-auto">
-                          {[...localUpdates].slice().reverse().map((u, i, arr) => {
-                            const realIdx = localUpdates.length - 1 - i;
-                            const isEditing = editingUpdateIdx === realIdx;
-                            return (
-                              <div key={i} className={`border rounded-lg p-4 transition-all duration-200 ${u.status === 'resolved' ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                                {isEditing ? (
-                                  u.status === 'created' ? (
-                                    <div className="space-y-3">
-                                      <textarea
-                                        className="w-full border rounded-lg p-3 text-sm bg-gray-100 cursor-not-allowed"
-                                        rows={2}
-                                        value={editUpdateDesc}
-                                        readOnly
-                                      />
-                                      <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus} disabled>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Created" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="created">Created</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <div className="flex justify-end">
-                                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                                          Cancel
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-3">
-                                      <textarea
-                                        className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        rows={2}
-                                        value={editUpdateDesc}
-                                        onChange={e => setEditUpdateDesc(e.target.value)}
-                                      />
-                                      <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus}>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select update status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="investigating">Investigating</SelectItem>
-                                          <SelectItem value="identified">Identified</SelectItem>
-                                          <SelectItem value="monitoring">Monitoring</SelectItem>
-                                          <SelectItem value="resolved">Resolved</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <div className="flex gap-2 justify-end">
-                                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-                                          Cancel
-                                        </Button>
-                                        <Button 
-                                          size="sm" 
-                                          onClick={() => handleSaveEdit(realIdx)} 
-                                          disabled={!editUpdateDesc || !editUpdateStatus}
-                                        >
-                                          Save
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )
-                                ) : (
-                                  <div className="space-y-3">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex items-start gap-3 flex-1">
-                                        <span className="mt-1">{statusIcons[u.status as keyof typeof statusIcons]}</span>
-                                        <div className="flex-1">
-                                          <p className="text-sm font-medium mb-2 text-gray-900 leading-relaxed">{u.message}</p>
-                                          <span className="text-xs text-muted-foreground">
-                                            {new Date(u.timestamp).toLocaleString()}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      
-                                      <Button size="sm" variant="ghost" onClick={() => handleEditUpdate(realIdx, u)} className="shrink-0 hover:bg-gray-100">
-                                        <Pencil className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              )}
-              <DrawerFooter className="border-t">
-                <DrawerClose asChild>
-                  <Button variant="outline" className="w-full">Close</Button>
-                </DrawerClose>
-              </DrawerFooter>
-            </DrawerContent>
-          </Drawer>
-        </OrgRoleBasedAccess>
       </div>
     </div>
   );

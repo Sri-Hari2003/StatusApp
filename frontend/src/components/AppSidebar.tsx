@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useUser, useOrganization, OrganizationSwitcher } from "@clerk/clerk-react"
-import { ChevronLeft, ChevronRight, LayoutDashboard, Settings, Users, Home, Menu } from "lucide-react"
+import { ChevronLeft, ChevronRight, LayoutDashboard, Settings, Users, Home, Menu, Moon, Sun } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
 import {
@@ -12,8 +12,8 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { toggleDarkMode } from "@/App"
 
 interface NavigationItem {
   name: string
@@ -25,6 +25,7 @@ interface NavigationItem {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUser()
   const location = useLocation()
+  const [isDark, setIsDark] = React.useState(() => document.documentElement.classList.contains('dark'));
 
   const navigation: NavigationItem[] = [
     {
@@ -41,13 +42,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   ]
 
+  function handleToggleDarkMode() {
+    toggleDarkMode();
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }
+
   return (
     <Sidebar className={cn(
       "group/sidebar fixed left-0 top-0 h-screen z-40 border-r border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-64 transition-all duration-300 ease-in-out"
     )} {...props}>
       {/* Header */}
       <SidebarHeader className="border-b border-border/40 p-4">
-      
+        <div className="flex items-center justify-between gap-2">
           <OrganizationSwitcher
             hidePersonal
             afterCreateOrganizationUrl="/dashboard"
@@ -56,11 +62,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             appearance={{
               elements: {
                 rootBox: "w-full",
-                organizationSwitcherTrigger: "w-full justify-start border border-border/40 bg-background/50 hover:bg-accent/50 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                organizationSwitcherTrigger: "w-full justify-start border border-border/40 bg-background/50 hover:bg-accent/50 px-3 py-2 rounded-md text-sm font-medium transition-colors !text-gray-900 dark:!text-zinc-100",
                 organizationSwitcherTriggerIcon: "text-muted-foreground"
               }
             }}
           />
+          <button
+            onClick={handleToggleDarkMode}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+        </div>
       </SidebarHeader>
 
       {/* Navigation Content */}
@@ -94,7 +108,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       {/* Footer */}
-      <SidebarFooter className="border-t border-border/40 p-3">
+      <SidebarFooter className="border-t border-border/40 p-3 flex flex-col gap-3 items-center">
         <NavUser 
           user={user ? {
             name: user.fullName || user.username || user.id,

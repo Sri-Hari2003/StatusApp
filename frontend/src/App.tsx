@@ -6,6 +6,7 @@ import SignInPage from './pages/SignInPage'
 import { AppSidebar } from './components/AppSidebar'
 import { SidebarProvider } from './components/ui/sidebar'
 import { SignedIn } from '@clerk/clerk-react'
+import React from 'react'
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,21 +19,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
+export function toggleDarkMode() {
+  document.documentElement.classList.toggle('dark');
+}
+
 function App() {
   const location = useLocation();
   if (location.pathname === '/auth') {
     return <SignInPage />;
   }
   return (
-    
     <SignedIn>
-    <AppLayout>
-      <Routes>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/services/:id" element={<ServicesPage />} />
-      </Routes>
-      
-    </AppLayout>
+      <AppLayout>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/services/:id" element={<ServicesPage />} />
+        </Routes>
+      </AppLayout>
     </SignedIn>
   )
 }
