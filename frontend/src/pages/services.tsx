@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { mockServices, mockIncidentTimeline } from "../lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
@@ -76,6 +76,7 @@ const ServicesPage: React.FC = () => {
   const [newServiceStatus, setNewServiceStatus] = useState("");
   const [newServiceLink, setNewServiceLink] = useState("");
   const [servicesState, setServicesState] = useState(mockServices);
+  const [scrolled, setScrolled] = useState(false);
 
   const service = servicesState[selectedIdx];
   const incidents = incidentsState.filter((inc) => inc.serviceId === service.id);
@@ -112,6 +113,12 @@ const ServicesPage: React.FC = () => {
       navigate(`/services/${service.id}`, { replace: true });
     }
   }, [selectedIdx, navigate]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleCreateIncident = () => {
     if (!newIncidentName) return;
@@ -221,12 +228,82 @@ const ServicesPage: React.FC = () => {
     <div className="min-h-screen">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-        <div className="mb-8">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-900">Service Details</h1>
-            <p className="text-gray-600 text-sm sm:text-base">Monitor and manage your services and incidents</p>
+        <div
+          className={`sticky top-0 z-30 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-900">Service Details</h1>
+              <p className="text-gray-600 text-sm sm:text-base">manage your services</p>
+            </div>
+            <OrgRoleBasedAccess allowedRoles={["admin"]}>
+              <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
+                <DialogTrigger asChild>
+                  
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Create Service</DialogTitle>
+                    <DialogDescription>Fill in the details to create a new service.</DialogDescription>
+                  </DialogHeader>
+                  <Separator />
+                  <div className="space-y-4 py-2">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Service Name</label>
+                      <input
+                        className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newServiceName}
+                        onChange={e => setNewServiceName(e.target.value)}
+                        placeholder="Enter service name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Description</label>
+                      <textarea
+                        className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        rows={2}
+                        value={newServiceDesc}
+                        onChange={e => setNewServiceDesc(e.target.value)}
+                        placeholder="Describe the service (optional)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Status</label>
+                      <Select value={newServiceStatus} onValueChange={setNewServiceStatus}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="operational">Operational</SelectItem>
+                          <SelectItem value="partial_outage">Partial Outage</SelectItem>
+                          <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
+                          <SelectItem value="major_outage">Major Outage</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Link</label>
+                      <input
+                        className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        value={newServiceLink}
+                        onChange={e => setNewServiceLink(e.target.value)}
+                        placeholder="https://example.com (optional)"
+                        type="url"
+                      />
+                    </div>
+                  </div>
+                  <Separator />
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleCreateService} disabled={!newServiceName || !newServiceStatus}>Create</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </OrgRoleBasedAccess>
           </div>
-      </div>
+        </div>
 
       {/* Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
