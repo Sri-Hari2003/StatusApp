@@ -5,13 +5,14 @@ import ServicesPage from './pages/services'
 import SignInPage from './pages/SignInPage'
 import { AppSidebar } from './components/AppSidebar'
 import { SidebarProvider } from './components/ui/sidebar'
+import { SignedIn } from '@clerk/clerk-react'
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
+      <div className="flex w-full">
         <AppSidebar />
-        <main className="flex-1 min-w-0">{children}</main>
+        <main className=" min-w-0">{children}</main>
       </div>
     </SidebarProvider>
   )
@@ -23,12 +24,16 @@ function App() {
     return <SignInPage />;
   }
   return (
+    
+    <SignedIn>
     <AppLayout>
       <Routes>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/services/:id" element={<ServicesPage />} />
       </Routes>
+      
     </AppLayout>
+    </SignedIn>
   )
 }
 

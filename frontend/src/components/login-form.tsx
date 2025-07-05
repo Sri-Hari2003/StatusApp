@@ -7,7 +7,7 @@ export function LoginForm() {
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardTitle className="text-xl">Sign in / Sign up</CardTitle>
           <CardDescription>
             Login with your account
           </CardDescription>
@@ -17,7 +17,7 @@ export function LoginForm() {
             <div className="flex flex-col gap-4">
               <SignInButton mode="modal">
                 <Button variant="outline" className="w-full">
-                  Sign in with Clerk
+                  Sign in
                 </Button>
               </SignInButton>
               <SignUpButton mode="modal">

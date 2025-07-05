@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { mockServices, mockIncidentTimeline } from "../lib/mockData";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
+import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
 
 const statusIcons = {
   resolved: <CheckCircle2 className="text-green-600 w-4 h-4 mr-1" />,
@@ -267,7 +268,7 @@ const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-semibold">Service Dashboard</h1>
                 <div className="flex gap-2">
-                <SignedIn>
+                <OrgRoleBasedAccess allowedRoles={["admin"]}>
                     <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
                         <DialogTrigger asChild>
                             <Button onClick={() => setServiceDialogOpen(true)}>
@@ -385,7 +386,7 @@ const DashboardPage: React.FC = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-                    </SignedIn>
+                    </OrgRoleBasedAccess>
                 </div>
       </div>
       <Separator />
@@ -502,7 +503,7 @@ const DashboardPage: React.FC = () => {
                 </div>
             )}
             {/* Incident Drawer */}
-            <SignedIn>
+            <OrgRoleBasedAccess allowedRoles={["admin"]}>
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
                 <DrawerContent>
                     <DrawerHeader>
@@ -640,7 +641,7 @@ const DashboardPage: React.FC = () => {
                     </DrawerFooter>
                 </DrawerContent>
             </Drawer>
-            </SignedIn>
+            </OrgRoleBasedAccess>
             <Separator />
             {/* Area Chart Section */}
             <AreaChartIncidents

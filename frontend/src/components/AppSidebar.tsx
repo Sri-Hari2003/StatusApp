@@ -1,175 +1,108 @@
 "use client"
 
 import * as React from "react"
-import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,
-} from "lucide-react"
+import { Link, useLocation } from "react-router-dom"
+import { useUser, useOrganization, OrganizationSwitcher } from "@clerk/clerk-react"
+import { ChevronLeft, ChevronRight, LayoutDashboard, Settings, Users, Home, Menu } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarRail,
 } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-// This is sample data.
-const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
-  ],
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  current?: boolean
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useUser()
+  const location = useLocation()
+
+  const navigation: NavigationItem[] = [
+    {
+      name: 'Dashboard',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+      current: location.pathname === '/dashboard'
+    },
+    {
+      name: 'Services',
+      href: '/services/1',
+      icon: Menu,
+      current: location.pathname.startsWith('/services')
+    }
+  ]
+
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+    <Sidebar className={cn(
+      "group/sidebar fixed left-0 top-0 h-screen z-40 border-r border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-64 transition-all duration-300 ease-in-out"
+    )} {...props}>
+      {/* Header */}
+      <SidebarHeader className="border-b border-border/40 p-4">
+      
+          <OrganizationSwitcher
+            hidePersonal
+            afterCreateOrganizationUrl="/dashboard"
+            afterLeaveOrganizationUrl="/dashboard"
+            afterSelectOrganizationUrl="/dashboard"
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                organizationSwitcherTrigger: "w-full justify-start border border-border/40 bg-background/50 hover:bg-accent/50 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                organizationSwitcherTriggerIcon: "text-muted-foreground"
+              }
+            }}
+          />
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+
+      {/* Navigation Content */}
+      <SidebarContent className="flex-1 px-3 py-4">
+        <nav className="space-y-2">
+          {navigation.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={cn(
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-accent hover:text-accent-foreground",
+                  item.current
+                    ? "bg-accent text-accent-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className={cn(
+                  "h-4 w-4 flex-shrink-0",
+                  item.current ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
+                )} />
+                <span className="truncate">{item.name}</span>
+                {item.current && (
+                  <div className="absolute right-2 h-1.5 w-1.5 rounded-full bg-accent-foreground" />
+                )}
+              </Link>
+            )
+          })}
+        </nav>
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
+
+      {/* Footer */}
+      <SidebarFooter className="border-t border-border/40 p-3">
+        <NavUser 
+          user={user ? {
+            name: user.fullName || user.username || user.id,
+            email: user.primaryEmailAddress?.emailAddress || '',
+            avatar: user.imageUrl || ''
+          } : { name: '', email: '', avatar: '' }}
+        />
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
-} 
+}
