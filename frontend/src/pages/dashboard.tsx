@@ -36,6 +36,7 @@ import {
 import { mockServices, mockIncidentTimeline } from "../lib/mockData";
 import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const statusColors: Record<string, string> = {
   operational: "bg-green-500",
@@ -78,6 +79,7 @@ const DashboardPage: React.FC = () => {
     const [newServiceStatus, setNewServiceStatus] = useState("");
     const [newServiceLink, setNewServiceLink] = useState("");
   const [scrolled, setScrolled] = useState(false);
+  const isMobile = useIsMobile();
 
     const getServiceName = (id: number) => {
         const source = services ?? mockServices;
@@ -257,13 +259,13 @@ const DashboardPage: React.FC = () => {
     };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-900">
+    <div className="flex-1 bg-slate-50 dark:bg-zinc-900">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
             <Toaster />
         
         {/* Header Section */}
         <div
-          className={`sticky top-0 z-30 bg-white/80 dark:bg-zinc-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-zinc-900/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
+          className={`${!isMobile ? "sticky top-0 z-30" : ""} bg-white/80 dark:bg-zinc-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-zinc-900/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">

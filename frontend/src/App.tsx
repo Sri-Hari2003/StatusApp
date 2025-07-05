@@ -7,13 +7,16 @@ import { AppSidebar } from './components/AppSidebar'
 import { SidebarProvider } from './components/ui/sidebar'
 import { SignedIn } from '@clerk/clerk-react'
 import React from 'react'
+import { useIsMobile } from './hooks/use-mobile'
+import { MOBILE_NAVBAR_HEIGHT } from './components/AppSidebar'
 
 function AppLayout({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile();
   return (
     <SidebarProvider>
-      <div className="flex w-full">
+      <div className={isMobile ? 'flex flex-col h-screen w-full overflow-y-auto' : 'flex w-full'}>
         <AppSidebar />
-        <main className=" min-w-0">{children}</main>
+        <main className={isMobile ? 'flex-1 flex flex-col min-w-0 pt-16' : 'min-w-0'}>{children}</main>
       </div>
     </SidebarProvider>
   )
