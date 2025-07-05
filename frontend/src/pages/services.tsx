@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription }
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
@@ -218,45 +218,54 @@ const ServicesPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Service Details</h1>
-        <Separator />
+        <div className="mb-8">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-900">Service Details</h1>
+            <p className="text-gray-600 text-sm sm:text-base">Monitor and manage your services and incidents</p>
+          </div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
         {/* Left Column: Service Carousel */}
-        <div className="lg:col-span-2 space-y-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Services</h2>
+          <div className="xl:col-span-2 space-y-6">
+            {/* Services Section */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Services</h2>
+                  <p className="text-gray-600 text-sm mt-1">Browse through available services</p>
+                </div>
             <OrgRoleBasedAccess allowedRoles={["admin"]}>
               <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button onClick={() => setServiceDialogOpen(true)}>
+                      <Button onClick={() => setServiceDialogOpen(true)} className="w-full sm:w-auto">
                     <Plus className="mr-2 h-4 w-4" /> Create Service
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                    <DialogContent className="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Create Service</DialogTitle>
                     <DialogDescription>Fill in the details to create a new service.</DialogDescription>
                   </DialogHeader>
+                      <Separator />
                   <div className="space-y-4 py-2">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Service Name</label>
+                          <label className="block text-sm font-medium mb-2">Service Name</label>
                       <input
-                        className="w-full border rounded p-2 text-sm"
+                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newServiceName}
                         onChange={e => setNewServiceName(e.target.value)}
                         placeholder="Enter service name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Description</label>
+                          <label className="block text-sm font-medium mb-2">Description</label>
                       <textarea
-                        className="w-full border rounded p-2 text-sm"
+                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         rows={2}
                         value={newServiceDesc}
                         onChange={e => setNewServiceDesc(e.target.value)}
@@ -264,7 +273,7 @@ const ServicesPage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Status</label>
+                          <label className="block text-sm font-medium mb-2">Status</label>
                       <Select value={newServiceStatus} onValueChange={setNewServiceStatus}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select status" />
@@ -278,9 +287,9 @@ const ServicesPage: React.FC = () => {
                       </Select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Link</label>
+                          <label className="block text-sm font-medium mb-2">Link</label>
                       <input
-                        className="w-full border rounded p-2 text-sm"
+                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={newServiceLink}
                         onChange={e => setNewServiceLink(e.target.value)}
                         placeholder="https://example.com (optional)"
@@ -288,6 +297,7 @@ const ServicesPage: React.FC = () => {
                       />
                     </div>
                   </div>
+                      <Separator />
                   <DialogFooter>
                     <DialogClose asChild>
                       <Button variant="outline">Cancel</Button>
@@ -298,6 +308,7 @@ const ServicesPage: React.FC = () => {
               </Dialog>
             </OrgRoleBasedAccess>
           </div>
+              
           <div className="w-full">
             <Carousel
               opts={{ loop: false, startIndex: initialIdx }}
@@ -307,54 +318,62 @@ const ServicesPage: React.FC = () => {
               <CarouselContent>
                 {servicesState.map((svc, idx) => (
                   <CarouselItem key={svc.id} className="flex justify-center items-stretch overflow-visible">
-                    <Card className={`w-full max-w-sm px-3 py-1 flex flex-col justify-center overflow-visible transition-all duration-200`}>
-                      <CardHeader className="pb-0 px-2">
-                        <CardTitle className="flex items-center justify-between text-base mb-1">
-                          <span className="truncate">{svc.name}</span>
-                          <span className={`w-3 h-3 rounded-full ${statusColors[svc.status]} shadow-sm`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
+                        <Card className={`w-full max-w-sm px-4 py-3 flex flex-col justify-center overflow-visible transition-all duration-300 hover:shadow-lg border-2 ${selectedIdx === idx ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                          <CardHeader className="pb-3 px-3">
+                            <CardTitle className="flex items-center justify-between text-base mb-2">
+                              <span className="truncate font-semibold">{svc.name}</span>
+                              <span className={`w-4 h-4 rounded-full ${statusColors[svc.status]} shadow-lg ring-2 ring-white`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-1 px-2 py-0 overflow-visible">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge className={`${statusColors[svc.status]} text-white font-medium text-xs`}>{statusLabels[svc.status] || svc.status.replace("_", " ")}</Badge>
-                          <Badge variant="outline" className="font-medium text-xs">Uptime: {svc.uptime}</Badge>
+                          <CardContent className="space-y-3 px-3 py-0 overflow-visible">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className={`${statusColors[svc.status]} text-white font-medium text-xs shadow-sm`}>
+                                {statusLabels[svc.status] || svc.status.replace("_", " ")}
+                              </Badge>
+                              <Badge variant="outline" className="font-medium text-xs bg-gray-50">
+                                Uptime: {svc.uptime}
+                              </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground leading-snug mb-1">{svc.description}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{svc.description}</p>
                         {svc.link && (
-                          <div className="pt-1 border-t">
+                              <>
+                                <Separator className="my-2" />
+                                <div className="pt-1">
                             <a 
                               href={svc.link} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors"
+                                    className="text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors block truncate"
                             >
                               {svc.link}
                             </a>
                           </div>
+                              </>
                         )}
                       </CardContent>
                     </Card>
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-2" />
-              <CarouselNext className="right-2" />
+                  <CarouselPrevious className="left-2 bg-white shadow-lg" />
+                  <CarouselNext className="right-2 bg-white shadow-lg" />
             </Carousel>
+              </div>
           </div>
 
           {/* Chart Section */}
           {incidents.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Incident Duration Analysis</h3>
+                  <p className="text-gray-600 text-sm">Duration comparison showing how long each incident was active (in days)</p>
+                </div>
+                <Separator className="mb-6" />
             <div className="w-full">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl">Incident Duration Analysis</CardTitle>
-                  <CardDescription>Duration comparison showing how long each incident was active (in days)</CardDescription>
-                </CardHeader>
-                <CardContent>
                   <ChartContainer config={{}}>
                     <BarChart
                       width={600}
-                      height={Math.max(incidents.length * 45, 250)}
+                      height={Math.max(incidents.length * 50, 300)}
                       data={incidents.map((incident) => {
                         const start = new Date(incident.created_at);
                         let end = start;
@@ -369,47 +388,59 @@ const ServicesPage: React.FC = () => {
                         };
                       })}
                       layout="vertical"
-                      margin={{ right: 20, left: 20, top: 20, bottom: 20 }}
+                      margin={{ right: 30, left: 30, top: 20, bottom: 20 }}
                     >
                       <CartesianGrid horizontal={false} />
                       <YAxis dataKey="name" type="category" tickLine={false} tickMargin={12} axisLine={false} width={200} />
                       <XAxis dataKey="days" type="number" label={{ value: 'Days Active', position: 'insideBottomRight', offset: 0 }} />
                       <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                      <Bar dataKey="days" fill="var(--chart-2)" radius={4}>
-                        
+                      <Bar dataKey="days" radius={4}>
+                        {incidents.map((incident, index) => {
+                          const start = new Date(incident.created_at);
+                          let end = start;
+                          if (incident.updates && incident.updates.length > 0) {
+                            const resolvedUpdate = incident.updates.find(u => u.status === 'resolved');
+                            end = resolvedUpdate ? new Date(resolvedUpdate.timestamp) : new Date();
+                          }
+                          const daysActive = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                          return (
+                            <Cell key={`cell-${index}`} fill={daysActive < 2 ? "#10b981" : "#ef4444"} />
+                          );
+                        })}
                       </Bar>
                     </BarChart>
                   </ChartContainer>
-                </CardContent>
-                <CardFooter className="flex-col items-start gap-2 text-sm">
-                  <div className="text-muted-foreground leading-none">
+                </div>
+                <Separator className="mt-6 mb-4" />
+                <div className="text-sm text-muted-foreground">
                     Showing total days active for each incident
                   </div>
-                </CardFooter>
-              </Card>
             </div>
           )}
         </div>
 
         {/* Right Column: Incident Timeline */}
-        <div className="lg:col-span-1">
-          
-        <h2 className="text-xl font-semibold">Incident Timeline</h2>
-          <div className="sticky top-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="xl:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Incident Timeline</h2>
+                  <p className="text-gray-600 text-sm mt-1">Track and manage incidents</p>
+                </div>
               <OrgRoleBasedAccess allowedRoles={["admin"]}>
                 <Dialog open={incidentDialogOpen} onOpenChange={setIncidentDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="default" size="sm" className="flex items-center gap-2">
+                      <Button variant="default" size="sm" className="flex items-center gap-2 w-full sm:w-auto">
                       <Plus className="h-4 w-4" />
                       Add Incident
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                    <DialogContent className="max-w-md">
                     <DialogHeader>
                       <DialogTitle>Create New Incident</DialogTitle>
                       <DialogDescription>Fill in the details to create a new incident for this service.</DialogDescription>
                     </DialogHeader>
+                      <Separator />
                     <div className="space-y-4 py-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Incident Name</label>
@@ -439,6 +470,7 @@ const ServicesPage: React.FC = () => {
                         />
                       </div>
                     </div>
+                      <Separator />
                     <DialogFooter>
                       <DialogClose asChild>
                         <Button variant="outline">Cancel</Button>
@@ -452,53 +484,61 @@ const ServicesPage: React.FC = () => {
               </OrgRoleBasedAccess>
             </div>
 
-            <div className="space-y-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2">
+              <Separator className="mb-4" />
+
+              <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
               {incidents.length === 0 ? (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No incidents found for this service.</p>
+                  <Card className="p-8 text-center border-dashed">
+                    <div className="text-gray-400 mb-2">
+                      <AlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    </div>
+                    <p className="text-muted-foreground font-medium">No incidents found</p>
+                    <p className="text-sm text-muted-foreground mt-1">All systems are running smoothly</p>
                 </Card>
               ) : (
                 incidents.map((incident) => (
-                  <Card key={incident.id} className="hover:shadow-md transition-shadow duration-200">
+                    <Card key={incident.id} className="hover:shadow-md transition-all duration-200 border-l-4 border-l-blue-500">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
-                        <CardTitle className="text-lg leading-tight pr-2">{incident.title}</CardTitle>
+                          <CardTitle className="text-lg leading-tight pr-2 font-semibold">{incident.title}</CardTitle>
                         <OrgRoleBasedAccess allowedRoles={["admin"]}>
-                        <Button size="sm" variant="ghost" onClick={() => handleIncidentClick(incident)} className="shrink-0">
+                            <Button size="sm" variant="ghost" onClick={() => handleIncidentClick(incident)} className="shrink-0 hover:bg-blue-50">
                           <Pencil className="w-4 h-4" />
                         </Button>
                         </OrgRoleBasedAccess>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                      <CardContent className="space-y-4">
                       <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="text-xs">
+                          <Badge variant="outline" className="text-xs font-medium bg-gray-50">
                           {incident.status.replace("_", " ")}
                         </Badge>
                         <p className="text-xs text-muted-foreground">
                           {new Date(incident.created_at).toLocaleDateString()}
                         </p>
                       </div>
+                        
+                        <Separator />
                       
                       <div>
-                        <div className="font-medium text-sm mb-2">Recent Updates</div>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          <div className="font-medium text-sm mb-3 text-gray-900">Recent Updates</div>
+                          <div className="space-y-3 max-h-32 overflow-y-auto">
                           {incident.updates && incident.updates.length > 0 ? (
                             [...incident.updates].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 2).map((update, idx) => (
-                              <div key={idx} className={`rounded-lg p-2 text-xs border-l-4 ${update.status === 'resolved' ? 'border-l-green-500 bg-green-50' : 'border-l-gray-300 bg-gray-50'}`}>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`px-2 py-1 rounded text-xs font-medium ${updateStatusColors[update.status] || 'bg-gray-100 text-gray-800'}`}>
+                                <div key={idx} className={`rounded-lg p-3 text-xs border-l-4 transition-colors ${update.status === 'resolved' ? 'border-l-green-500 bg-green-50' : 'border-l-gray-300 bg-gray-50'}`}>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${updateStatusColors[update.status] || 'bg-gray-100 text-gray-800'}`}>
                                     {update.status.replace('_', ' ')}
                                   </span>
                                 </div>
-                                <p className="text-xs text-gray-700 mb-1">{update.message}</p>
+                                  <p className="text-xs text-gray-700 mb-2 leading-relaxed">{update.message}</p>
                                 <span className="text-xs text-gray-500">
                                   {new Date(update.timestamp).toLocaleString()}
                                 </span>
                               </div>
                             ))
                           ) : (
-                            <div className="text-xs text-gray-500 italic">No updates available</div>
+                              <div className="text-xs text-gray-500 italic p-3 bg-gray-50 rounded-lg">No updates available</div>
                           )}
                         </div>
                       </div>
@@ -514,7 +554,7 @@ const ServicesPage: React.FC = () => {
       {/* Drawer for editing incidents */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerContent className="max-h-[90vh]">
-          <DrawerHeader>
+            <DrawerHeader className="border-b">
             <DrawerTitle>Incident Management</DrawerTitle>
             <DrawerDescription>
               {selectedIncident && (
@@ -529,16 +569,17 @@ const ServicesPage: React.FC = () => {
           </DrawerHeader>
           {selectedIncident && (
             <div className="px-4 pb-4 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-6">
                 {/* Add Update Form */}
-                <Card className="h-fit">
-                  <CardHeader>
+                  <Card className="h-fit shadow-sm">
+                    <CardHeader className="border-b">
                     <CardTitle className="text-lg">Add Update</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                    <CardContent className="pt-6">
                     {isResolved ? (
-                      <div className="text-sm text-muted-foreground bg-green-50 p-4 rounded-lg">
-                        ✓ This incident has been resolved. No further updates can be added.
+                        <div className="text-sm text-green-700 bg-green-50 p-4 rounded-lg border border-green-200">
+                          <CheckCircle2 className="w-5 h-5 inline mr-2" />
+                          This incident has been resolved. No further updates can be added.
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -579,17 +620,17 @@ const ServicesPage: React.FC = () => {
                 </Card>
 
                 {/* Updates Timeline */}
-                <Card>
-                  <CardHeader>
+                  <Card className="shadow-sm">
+                    <CardHeader className="border-b">
                     <CardTitle className="text-lg">Updates Timeline</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4 max-h-96 overflow-y-auto">
                       {[...localUpdates].slice().reverse().map((u, i, arr) => {
                         const realIdx = localUpdates.length - 1 - i;
                         const isEditing = editingUpdateIdx === realIdx;
                         return (
-                          <div key={i} className={`border rounded-lg p-4 ${u.status === 'resolved' ? 'bg-green-50 border-green-200' : 'bg-gray-50'}`}>
+                            <div key={i} className={`border rounded-lg p-4 transition-all duration-200 ${u.status === 'resolved' ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
                             {isEditing ? (
                               u.status === 'created' ? (
                                 <div className="space-y-3">
@@ -647,22 +688,21 @@ const ServicesPage: React.FC = () => {
                                 </div>
                               )
                             ) : (
-                              <div className="space-y-2">
+                                <div className="space-y-3">
                                 <div className="flex items-start justify-between">
-                                  <div className="flex items-start gap-2">
+                                    <div className="flex items-start gap-3 flex-1">
                                     <span className="mt-1">{statusIcons[u.status as keyof typeof statusIcons]}</span>
                                     <div className="flex-1">
-                                      <p className="text-sm font-medium mb-1">{u.message}</p>
+                                        <p className="text-sm font-medium mb-2 text-gray-900 leading-relaxed">{u.message}</p>
                                       <span className="text-xs text-muted-foreground">
                                         {new Date(u.timestamp).toLocaleString()}
                                       </span>
                                     </div>
                                   </div>
                                   
-                                  <Button size="sm" variant="ghost" onClick={() => handleEditUpdate(realIdx, u)}>
+                                    <Button size="sm" variant="ghost" onClick={() => handleEditUpdate(realIdx, u)} className="shrink-0 hover:bg-gray-100">
                                     <Pencil className="w-4 h-4" />
                                   </Button>
-                                  
                                 </div>
                               </div>
                             )}
@@ -675,13 +715,14 @@ const ServicesPage: React.FC = () => {
               </div>
             </div>
           )}
-          <DrawerFooter>
+            <DrawerFooter className="border-t">
             <DrawerClose asChild>
               <Button variant="outline" className="w-full">Close</Button>
             </DrawerClose>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+      </div>
     </div>
   );
 };

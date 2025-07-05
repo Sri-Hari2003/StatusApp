@@ -266,7 +266,7 @@ const DashboardPage: React.FC = () => {
     <div className="p-6 space-y-6">
             <Toaster />
             <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-semibold">Service Dashboard</h1>
+        <h1 className="text-2xl font-semibold">Overvew Dashboard</h1>
                 <div className="flex gap-2">
                 <OrgRoleBasedAccess allowedRoles={["admin"]}>
                     <Dialog open={serviceDialogOpen} onOpenChange={setServiceDialogOpen}>
