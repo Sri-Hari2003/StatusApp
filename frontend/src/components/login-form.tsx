@@ -44,7 +44,7 @@ export function LoginForm() {
                   <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center mx-auto">
                     <Monitor className="w-4 h-4 text-green-400" />
                   </div>
-                  <div className="text-xs text-gray-400">Real-time Monitoring</div>
+                  <div className="text-xs text-gray-400">Service Monitoring</div>
                 </div>
                 <div className="text-center space-y-2">
                   <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center mx-auto">

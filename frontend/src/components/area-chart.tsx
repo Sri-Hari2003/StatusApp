@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   Card,
   CardContent,
@@ -43,21 +43,21 @@ const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, char
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
+          className="aspect-auto h-[380px] w-full"
         >
           <AreaChart data={chartData}>
             <defs>
               {serviceKeys.map((key, idx) => (
                 <linearGradient key={key} id={`fill${key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop
-                    offset="5%"
+                    offset="10%"
                     stopColor={chartConfig[key].color}
-                    stopOpacity={0.8}
+                    stopOpacity={0.7}
                   />
                   <stop
-                    offset="95%"
+                    offset="90%"
                     stopColor={chartConfig[key].color}
-                    stopOpacity={0.1}
+                    stopOpacity={0.25}
                   />
                 </linearGradient>
               ))}
@@ -76,6 +76,13 @@ const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, char
                   day: "numeric",
                 });
               }}
+            />
+            <YAxis
+              allowDecimals={false}
+              domain={[0, (dataMax) => Math.max(2, dataMax + 1)]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
             />
             <ChartTooltip
               cursor={false}
@@ -96,8 +103,9 @@ const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, char
                 key={key}
                 dataKey={key}
                 type="natural"
-                fill={`url(#fill${key})`}
+                fill="transparent"
                 stroke={chartConfig[key].color}
+                strokeWidth={2}
                 stackId="a"
               />
             ))}

@@ -1,13 +1,13 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { mockServices, mockIncidentTimeline } from "../lib/mockData";
+import { mockServices, mockIncidentTimeline, getServicesByOrg, getIncidentsByOrg } from "../lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
+import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle, Wrench, Calendar } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -16,19 +16,37 @@ import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
 import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useOrganization } from "@clerk/clerk-react";
+import { useServiceCount } from "../App";
+import { Calendar24 } from "@/components/Calendar24";
+import { 
+  createService, 
+  createIncident, 
+  addUpdate, 
+  editUpdate, 
+  scheduleMaintenance, 
+  hasScheduledMaintenance, 
+  getMaintenanceInfo,
+  type Service,
+  type Incident,
+  type Update,
+  type MaintenanceData
+} from "../lib/requests";
 
 const statusColors: Record<string, string> = {
   operational: "bg-green-500",
   partial_outage: "bg-yellow-500",
   degraded_performance: "bg-orange-500",
-  major_outage: "bg-red-500"
+  major_outage: "bg-red-500",
+  under_maintenance: "bg-blue-500"
 };
 
 const statusLabels: Record<string, string> = {
   operational: "Operational",
   partial_outage: "Partial Outage",
   degraded_performance: "Degraded Performance",
-  major_outage: "Major Outage"
+  major_outage: "Major Outage",
+  under_maintenance: "Under Maintenance"
 };
 
 // Helper to get status color for update
@@ -47,20 +65,37 @@ const statusIcons = {
   investigating: <Clock className="text-gray-500 w-4 h-4 mr-1" />
 };
 
+
+
 const ServicesPage: React.FC = () => {
+  const { organization } = useOrganization();
+  const { setServiceCount } = useServiceCount();
   const params = useParams();
   const navigate = useNavigate();
-  const initialServiceId = Number(params["*"] || params.id || params.serviceId) || mockServices[0]?.id;
+  const [servicesState, setServicesState] = useState(mockServices);
+  const [incidentsState, setIncidentsState] = useState(mockIncidentTimeline);
+  
+  // Update services and incidents when organization changes
+  useEffect(() => {
+    if (organization?.id) {
+      const orgServices = getServicesByOrg(organization.id);
+      const orgIncidents = getIncidentsByOrg(organization.id);
+      setServicesState(orgServices);
+      setIncidentsState(orgIncidents);
+      setServiceCount(orgServices.length);
+    }
+  }, [organization?.id, setServiceCount]);
+
+  const initialServiceId = Number(params["*"] || params.id || params.serviceId) || servicesState[0]?.id;
   const initialIdx = React.useMemo(() => {
-    const idx = mockServices.findIndex((s) => s.id === initialServiceId);
+    const idx = servicesState.findIndex((s) => s.id === initialServiceId);
     return idx >= 0 ? idx : 0;
-  }, [initialServiceId]);
+  }, [initialServiceId, servicesState]);
   const [selectedIdx, setSelectedIdx] = React.useState(initialIdx);
   const emblaApiRef = React.useRef<any>(null);
   const [incidentDialogOpen, setIncidentDialogOpen] = React.useState(false);
   const [newIncidentName, setNewIncidentName] = React.useState("");
   const [newIncidentDesc, setNewIncidentDesc] = React.useState("");
-  const [incidentsState, setIncidentsState] = React.useState(mockIncidentTimeline);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
   const [localUpdates, setLocalUpdates] = useState<any[]>([]);
@@ -76,9 +111,15 @@ const ServicesPage: React.FC = () => {
   const [newServiceDesc, setNewServiceDesc] = useState("");
   const [newServiceStatus, setNewServiceStatus] = useState("");
   const [newServiceLink, setNewServiceLink] = useState("");
-  const [servicesState, setServicesState] = useState(mockServices);
   const [scrolled, setScrolled] = useState(false);
   const [incidentFilter, setIncidentFilter] = useState<'all' | 'active'>('all');
+  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
+  const [maintenanceTitle, setMaintenanceTitle] = useState("");
+  const [maintenanceDesc, setMaintenanceDesc] = useState("");
+  const [maintenanceDate, setMaintenanceDate] = useState<Date | undefined>(undefined);
+  const [maintenanceTime, setMaintenanceTime] = useState("");
+  const [maintenanceDuration, setMaintenanceDuration] = useState("");
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const service = servicesState[selectedIdx];
@@ -127,32 +168,28 @@ const ServicesPage: React.FC = () => {
   }, []);
 
   const handleCreateIncident = () => {
-    if (!newIncidentName) return;
-    const newIncident = {
-      id: Date.now(),
-      title: newIncidentName,
-      serviceId: service.id,
-      status: "investigating",
-      created_at: new Date().toISOString(),
-      message: newIncidentDesc,
-      updates: [
-        {
-          status: "investigating",
-          timestamp: new Date().toISOString(),
-          message: newIncidentDesc || "Incident created."
-        }
-      ]
-    };
-    setIncidentsState(prev => [newIncident, ...prev]);
-    toast("Incident created", {
-      description: `Incident '${newIncidentName}' for service '${service.name}' has been created.`
-    });
-    setIncidentDialogOpen(false);
-    setNewIncidentName("");
-    setNewIncidentDesc("");
+    if (!organization?.id) return;
+    
+    const success = createIncident(
+      {
+        name: newIncidentName,
+        description: newIncidentDesc,
+        serviceId: service.id
+      },
+      organization.id,
+      servicesState,
+      setIncidentsState,
+      service.id
+    );
+
+    if (success) {
+      setIncidentDialogOpen(false);
+      setNewIncidentName("");
+      setNewIncidentDesc("");
+    }
   };
 
-  // Edit/update logic (copied from dashboard.tsx)
+  // Edit/update logic
   const handleIncidentClick = (incident: any) => {
     setSelectedIncident(incident);
     setLocalUpdates(incident.updates);
@@ -164,66 +201,86 @@ const ServicesPage: React.FC = () => {
     setEditUpdateDesc(update.message);
     setEditUpdateStatus(update.status);
   };
+
   const handleCancelEdit = () => {
     setEditingUpdateIdx(null);
     setEditUpdateDesc("");
     setEditUpdateStatus("");
   };
+
   const handleSaveEdit = (idx: number) => {
-    setLocalUpdates(prev => {
-      let updates = [...prev];
-      // Only one resolved allowed
-      if (editUpdateStatus === 'resolved') {
-        updates = updates.map((u, i) => i !== idx && u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
-      }
-      updates[idx] = { ...updates[idx], message: editUpdateDesc, status: editUpdateStatus };
-      return updates;
-    });
-    setEditingUpdateIdx(null);
-    setEditUpdateDesc("");
-    setEditUpdateStatus("");
-    toast.success('Update edited!');
+    editUpdate(
+      idx,
+      {
+        description: editUpdateDesc,
+        status: editUpdateStatus
+      },
+      setLocalUpdates,
+      setEditingUpdateIdx,
+      setEditUpdateDesc,
+      setEditUpdateStatus
+    );
   };
+
   const handleSaveUpdate = () => {
-    if (!newUpdateDesc || !newUpdateStatus) return;
-    const newUpdate = {
-      message: newUpdateDesc,
-      status: newUpdateStatus,
-      timestamp: new Date().toISOString()
-    };
-    setLocalUpdates(prev => {
-      let updates = [...prev];
-      if (newUpdateStatus === 'resolved') {
-        updates = updates.map(u => u.status === 'resolved' ? { ...u, status: 'monitoring' } : u);
-      }
-      return [...updates, newUpdate];
-    });
-    setSelectedIncident((prev: any) => prev ? { ...prev, status: newUpdateStatus } : prev);
-    setNewUpdateDesc("");
-    setNewUpdateStatus("");
-    toast.success('Update added!');
+    addUpdate(
+      {
+        description: newUpdateDesc,
+        status: newUpdateStatus
+      },
+      setLocalUpdates,
+      setSelectedIncident,
+      setNewUpdateDesc,
+      setNewUpdateStatus
+    );
   };
+
   const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
 
   const handleCreateService = () => {
-    if (!newServiceName || !newServiceStatus) return;
-    const newService = {
-      id: Date.now(),
-      name: newServiceName,
-      description: newServiceDesc,
-      status: newServiceStatus,
-      uptime: "100.00%",
-      link: newServiceLink
-    };
-    setServicesState(prev => [newService, ...prev]);
-    toast("Service created", {
-      description: `Service '${newServiceName}' has been created.`
-    });
-    setServiceDialogOpen(false);
-    setNewServiceName("");
-    setNewServiceDesc("");
-    setNewServiceStatus("");
-    setNewServiceLink("");
+    if (!organization?.id) return;
+    
+    const success = createService(
+      {
+        name: newServiceName,
+        description: newServiceDesc,
+        status: newServiceStatus,
+        link: newServiceLink
+      },
+      organization.id,
+      setServicesState,
+      setServiceCount
+    );
+
+    if (success) {
+      setServiceDialogOpen(false);
+      setNewServiceName("");
+      setNewServiceDesc("");
+      setNewServiceStatus("");
+      setNewServiceLink("");
+    }
+  };
+
+  const handleScheduleMaintenance = (maintenanceData: MaintenanceData) => {
+    if (!organization?.id) return;
+    
+    const success = scheduleMaintenance(
+      maintenanceData,
+      organization.id,
+      service.id,
+      servicesState,
+      setIncidentsState,
+      setServicesState
+    );
+
+    if (success) {
+      setMaintenanceDialogOpen(false);
+      setMaintenanceTitle("");
+      setMaintenanceDesc("");
+      setMaintenanceDate(undefined);
+      setMaintenanceTime("");
+      setMaintenanceDuration("");
+    }
   };
 
   if (!service) {
@@ -259,7 +316,7 @@ const ServicesPage: React.FC = () => {
                       <Plus className="mr-2 h-4 w-4" /> Create Service
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Create Service</DialogTitle>
                       <DialogDescription>Fill in the details to create a new service.</DialogDescription>
@@ -296,6 +353,7 @@ const ServicesPage: React.FC = () => {
                             <SelectItem value="partial_outage">Partial Outage</SelectItem>
                             <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
                             <SelectItem value="major_outage">Major Outage</SelectItem>
+                            <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -325,7 +383,7 @@ const ServicesPage: React.FC = () => {
                       <Plus className="mr-2 h-4 w-4" /> Add Incident
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>Create Incident</DialogTitle>
                       <DialogDescription>Fill in the details to create a new incident.</DialogDescription>
@@ -371,6 +429,101 @@ const ServicesPage: React.FC = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+                <Dialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 hover:border-blue-700 transition">
+                      <Wrench className="mr-2 h-4 w-4" /> Schedule Maintenance
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Schedule Maintenance</DialogTitle>
+                      <DialogDescription>Schedule maintenance for {service.name}.</DialogDescription>
+                    </DialogHeader>
+                    <Separator />
+                    <div className="space-y-4 py-2">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Service</label>
+                        <input
+                          className="w-full border rounded-lg p-3 text-sm bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 cursor-not-allowed"
+                          value={service.name}
+                          disabled
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Maintenance Title</label>
+                        <input
+                          className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          value={maintenanceTitle}
+                          onChange={e => setMaintenanceTitle(e.target.value)}
+                          placeholder="e.g., Database Maintenance - Performance Optimization"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Description</label>
+                        <textarea
+                          className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows={3}
+                          value={maintenanceDesc}
+                          onChange={e => setMaintenanceDesc(e.target.value)}
+                          placeholder="Describe the maintenance work (optional)"
+                        />
+                      </div>
+                      <div className="flex gap-4">
+                        <Calendar24
+                          date={maintenanceDate}
+                          setDate={setMaintenanceDate}
+                          time={maintenanceTime}
+                          setTime={setMaintenanceTime}
+                        />
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium mb-2">Duration (minutes)</label>
+                          <input
+                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            type="number"
+                            min="1"
+                            value={maintenanceDuration}
+                            onChange={e => setMaintenanceDuration(e.target.value)}
+                            placeholder="Enter duration in minutes"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <Separator />
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button
+                        onClick={() => {
+                          if (!maintenanceTitle || !maintenanceDate || !maintenanceTime || !maintenanceDuration) {
+                            toast.error("Please fill in all required fields");
+                            return;
+                          }
+                          
+                          try {
+                            const start = new Date(maintenanceDate.toDateString() + 'T' + maintenanceTime);
+                            const durationMs = parseInt(maintenanceDuration, 10) * 60 * 1000;
+                            const end = new Date(start.getTime() + durationMs);
+                            
+                            handleScheduleMaintenance({
+                              title: maintenanceTitle,
+                              description: maintenanceDesc,
+                              scheduledStart: start.toISOString(),
+                              scheduledEnd: end.toISOString(),
+                            });
+                          } catch (error) {
+                            console.error('Error scheduling maintenance:', error);
+                            toast.error("Failed to schedule maintenance");
+                          }
+                        }}
+                        disabled={!maintenanceTitle || !maintenanceDate || !maintenanceTime || !maintenanceDuration}
+                      >
+                        Schedule Maintenance
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </OrgRoleBasedAccess>
             </div>
           </div>
@@ -396,44 +549,55 @@ const ServicesPage: React.FC = () => {
                   setApi={api => { emblaApiRef.current = api; }}
                 >
                   <CarouselContent>
-                    {servicesState.map((svc, idx) => (
-                      <CarouselItem key={svc.id} className="flex justify-center items-stretch overflow-visible">
-                        <Card className={`w-full max-w-sm px-4 py-3 flex flex-col justify-center overflow-visible transition-all duration-300 hover:shadow-lg border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:border-blue-900 dark:hover:bg-blue-900 ${selectedIdx === idx ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-zinc-200 bg-white dark:bg-zinc-900'}`}>
-                          <CardHeader className="pb-3 px-3">
-                            <CardTitle className="flex items-center justify-between text-base mb-2">
-                              <span className="truncate font-semibold group-hover:text-blue-600 transition-colors text-gray-900 dark:text-zinc-100">{svc.name}</span>
-                              <span className={`w-4 h-4 rounded-full ${statusColors[svc.status]} shadow-lg ring-2 ring-white`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3 px-3 py-0 overflow-visible">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge className={`${statusColors[svc.status]} text-white font-medium text-xs shadow-sm`}>
-                                {statusLabels[svc.status] || svc.status.replace("_", " ")}
-                              </Badge>
-                              <Badge variant="outline" className="font-medium text-xs bg-gray-50 text-black dark:bg-zinc-700 dark:text-zinc-100">
-                                Uptime: {svc.uptime}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed text-gray-900 dark:text-zinc-100">{svc.description}</p>
-                            {svc.link && (
-                              <>
-                                <Separator className="my-2" />
-                                <div className="pt-1">
-                                  <a 
-                                    href={svc.link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors block truncate"
-                                  >
-                                    {svc.link}
-                                  </a>
-                                </div>
-                              </>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </CarouselItem>
-                    ))}
+                    {servicesState.map((svc, idx) => {
+                      const maintenanceInfo = getMaintenanceInfo(svc.id, incidentsState);
+                      const hasMaintenance = hasScheduledMaintenance(svc.id, incidentsState);
+                      
+                      return (
+                        <CarouselItem key={svc.id} className="flex justify-center items-stretch overflow-visible">
+                          <Card className={`w-full max-w-sm px-4 py-3 flex flex-col justify-center overflow-visible transition-all duration-300 hover:shadow-lg border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:border-blue-900 dark:hover:bg-blue-900 ${selectedIdx === idx ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-zinc-200 bg-white dark:bg-zinc-900'}`}>
+                            <CardHeader className="pb-3 px-3">
+                              <CardTitle className="flex items-center justify-between text-base mb-2">
+                                <span className="truncate font-semibold group-hover:text-blue-600 transition-colors text-gray-900 dark:text-zinc-100">{svc.name}</span>
+                                <span className={`w-4 h-4 rounded-full ${statusColors[svc.status]} shadow-lg ring-2 ring-white`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 px-3 py-0 overflow-visible">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className={`${statusColors[svc.status]} text-white font-medium text-xs shadow-sm`}>
+                                  {statusLabels[svc.status] || svc.status.replace("_", " ")}
+                                </Badge>
+                                <Badge variant="outline" className="font-medium text-xs bg-gray-50 text-black dark:bg-zinc-700 dark:text-zinc-100">
+                                  Uptime: {svc.uptime}
+                                </Badge>
+                                {hasMaintenance && maintenanceInfo && maintenanceInfo.scheduledStart && (
+                                  <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 font-medium text-xs shadow-sm">
+                                    <Wrench className="w-3 h-3 mr-1" />
+                                    Maintenance: {new Date(maintenanceInfo.scheduledStart).toLocaleDateString()}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground leading-relaxed text-gray-900 dark:text-zinc-100">{svc.description}</p>
+                              {svc.link && (
+                                <>
+                                  <Separator className="my-2" />
+                                  <div className="pt-1">
+                                    <a 
+                                      href={svc.link} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors block truncate"
+                                    >
+                                      {svc.link}
+                                    </a>
+                                  </div>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </CarouselItem>
+                      );
+                    })}
                   </CarouselContent>
                   <CarouselPrevious className="left-2 bg-white shadow-lg" />
                   <CarouselNext className="right-2 bg-white shadow-lg" />

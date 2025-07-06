@@ -7,18 +7,31 @@ import OnboardingPage from './pages/OnboardingPage'
 import { AppSidebar } from './components/AppSidebar'
 import { SidebarProvider } from './components/ui/sidebar'
 import { SignedIn } from '@clerk/clerk-react'
-import React, { useEffect } from 'react'
+import React, { useEffect, createContext, useContext, useState } from 'react'
 import { useIsMobile } from './hooks/use-mobile'
 import { useOrganization, useAuth } from '@clerk/clerk-react'
 
+// Context for service count
+const ServiceContext = createContext<{
+  serviceCount: number;
+  setServiceCount: (count: number) => void;
+}>({
+  serviceCount: 0,
+  setServiceCount: () => {}
+});
+
+export const useServiceCount = () => useContext(ServiceContext);
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
+  const { serviceCount } = useServiceCount();
+  const hasServices = serviceCount > 0;
+  
   return (
     <SidebarProvider>
       <div className={isMobile ? 'flex flex-col h-screen w-full overflow-y-auto' : 'flex w-full'}>
         <AppSidebar />
-        <main className={isMobile ? 'flex-1 flex flex-col min-w-0 pt-16' : 'min-w-0'}>{children}</main>
+        <main className={isMobile ? 'flex-1 flex flex-col min-w-0 pt-16' : hasServices ? 'min-w-0' : 'w-full'}>{children}</main>
       </div>
     </SidebarProvider>
   )
@@ -33,6 +46,7 @@ function App() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [serviceCount, setServiceCount] = useState(0);
 
   useEffect(() => {
     if (authLoaded && !isSignedIn && location.pathname !== '/') {
@@ -51,37 +65,39 @@ function App() {
   }, [authLoaded, isSignedIn, isLoaded, membership, location.pathname, navigate]);
 
   return (
-    <Routes>
-      <Route path="/" element={<SignInPage />} />
-      <Route
-        path="/onboarding"
-        element={
-          <SignedIn>
-            <OnboardingPage />
-          </SignedIn>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <SignedIn>
-            <AppLayout>
-              <DashboardPage />
-            </AppLayout>
-          </SignedIn>
-        }
-      />
-      <Route
-        path="/services/:id"
-        element={
-          <SignedIn>
-            <AppLayout>
-              <ServicesPage />
-            </AppLayout>
-          </SignedIn>
-        }
-      />
-    </Routes>
+    <ServiceContext.Provider value={{ serviceCount, setServiceCount }}>
+      <Routes>
+        <Route path="/" element={<SignInPage />} />
+        <Route
+          path="/onboarding"
+          element={
+            <SignedIn>
+              <OnboardingPage />
+            </SignedIn>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <SignedIn>
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
+            </SignedIn>
+          }
+        />
+        <Route
+          path="/services/:id"
+          element={
+            <SignedIn>
+              <AppLayout>
+                <ServicesPage />
+              </AppLayout>
+            </SignedIn>
+          }
+        />
+      </Routes>
+    </ServiceContext.Provider>
   );
 }
 
