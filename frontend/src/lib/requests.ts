@@ -1,5 +1,4 @@
 import { toast } from 'sonner';
-
 // Types
 export interface MaintenanceData {
   title: string;
@@ -41,6 +40,9 @@ export interface Update {
   status: string;
   timestamp: string;
 }
+
+// Set your backend base URL here
+const API_BASE_URL = 'http://localhost:8000';
 
 // Service Management Functions
 export const createService = (
@@ -345,4 +347,182 @@ export const getMaintenanceInfo = (serviceId: number, incidents: Incident[]) => 
 export const getServiceName = (serviceId: number, services: Service[]): string => {
   const service = services.find(s => s.id === serviceId);
   return service ? service.name : "Unknown Service";
+};
+
+// Delete a service by ID
+export function deleteService(
+  serviceId: number,
+  setServicesState: React.Dispatch<React.SetStateAction<Service[]>>,
+  setServiceCount: (count: number) => void
+) {
+  setServicesState(prev => {
+    const newServices = prev.filter(s => s.id !== serviceId);
+    setServiceCount(newServices.length);
+    return newServices;
+  });
+  toast.success('Service deleted');
+}
+
+// Update a service by ID
+export function updateService(
+  updatedService: Service,
+  setServicesState: React.Dispatch<React.SetStateAction<Service[]>>
+) {
+  setServicesState(prev => prev.map(s => s.id === updatedService.id ? { ...s, ...updatedService } : s));
+  toast.success('Service updated');
+}
+
+// Delete an incident by ID
+export function deleteIncident(
+  incidentId: number,
+  setIncidentsState: React.Dispatch<React.SetStateAction<Incident[]>>
+) {
+  setIncidentsState(prev => prev.filter(i => i.id !== incidentId));
+  toast.success('Incident deleted');
+}
+
+// Delete an update from an incident by index
+export function deleteIncidentUpdate(
+  updateIndex: number,
+  setLocalUpdates: React.Dispatch<React.SetStateAction<Update[]>>,
+  setSelectedIncident: React.Dispatch<React.SetStateAction<Incident | null>>
+) {
+  setLocalUpdates(prev => {
+    const newUpdates = prev.filter((_, idx) => idx !== updateIndex);
+    setSelectedIncident(prevIncident => prevIncident ? { ...prevIncident, updates: newUpdates } : prevIncident);
+    return newUpdates;
+  });
+  toast.success('Incident update deleted');
+}
+
+// Utility to make API requests with orgId header
+export async function makerequest(url: string, options: RequestInit = {}, orgId: string) {
+  if (!orgId) throw new Error('Organization ID not found');
+  // Always use full backend URL
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  const headers = {
+    ...(options.headers || {}),
+    'X-Org-ID': orgId,
+    'Content-Type': 'application/json',
+  };
+  const method = (options.method || 'GET').toUpperCase();
+  let endpoint = url;
+  try {
+    endpoint = new URL(fullUrl).pathname;
+    console.log(`${method} - ${endpoint}`);
+  } catch {
+    console.log(`${method} - ${fullUrl}`);
+  }
+  const response = await fetch(fullUrl, { ...options, headers });
+  const result = await response.json();
+  console.log(`${method} - ${endpoint} RESULT:`, result);
+  if (method === 'GET' && endpoint === '/services' && Array.isArray(result)) {
+    console.log(`GET - /services COUNT:`, result.length);
+    if (result.length > 0) {
+      console.log(`GET - /services FIRST:`, result[0]);
+    } else {
+      console.log('GET - /services: No services found.');
+    }
+  }
+  if (!response.ok) {
+    const error = typeof result === 'string' ? result : JSON.stringify(result);
+    throw new Error(error || 'Request failed');
+  }
+  return result;
+}
+// Usage in a component:
+// const { orgId } = useAuth();
+// const services = await makerequest('/services', { method: 'GET' }, orgId);
+
+// Fetch all services from backend API using makerequest
+export async function getServicesFromApi(orgId: string) {
+  return makerequest('/services', { method: 'GET' }, orgId);
+}
+// Usage: const services = await getServicesFromApi(orgId);
+
+// Fetch all incidents from backend API using makerequest
+export async function getIncidentsFromApi(orgId: string) {
+  return makerequest('/incidents', { method: 'GET' }, orgId);
+}
+// Usage: const incidents = await getIncidentsFromApi(orgId);
+
+// --- Service CRUD API Calls ---
+
+// Create a new service
+export async function createServiceApi(serviceData: Omit<Service, 'id' | 'orgId' | 'uptime'>, orgId: string) {
+  return makerequest('/services', {
+    method: 'POST',
+    body: JSON.stringify(serviceData),
+  }, orgId);
+}
+
+// Update a service by ID
+export async function updateServiceApi(serviceId: number, serviceData: Partial<Service>, orgId: string) {
+  return makerequest(`/services/${serviceId}`, {
+    method: 'PUT',
+    body: JSON.stringify(serviceData),
+  }, orgId);
+}
+
+// Delete a service by ID
+export async function deleteServiceApi(serviceId: number, orgId: string) {
+  return makerequest(`/services/${serviceId}`, {
+    method: 'DELETE',
+  }, orgId);
+}
+
+// --- Incident CRUD API Calls ---
+
+// Create a new incident
+export async function createIncidentApi(incidentData: Omit<Incident, 'id' | 'orgId' | 'created_at'>, orgId: string) {
+  return makerequest('/incidents', {
+    method: 'POST',
+    body: JSON.stringify(incidentData),
+  }, orgId);
+}
+
+// Update an incident by ID
+export async function updateIncidentApi(incidentId: number, incidentData: Partial<Incident>, orgId: string) {
+  return makerequest(`/incidents/${incidentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(incidentData),
+  }, orgId);
+}
+
+// Delete an incident by ID
+export async function deleteIncidentApi(incidentId: number, orgId: string) {
+  return makerequest(`/incidents/${incidentId}`, {
+    method: 'DELETE',
+  }, orgId);
+}
+
+// --- Incident Update API Calls ---
+
+// Add an update to an incident
+export async function addIncidentUpdateApi(incidentId: number, updateData: Update, orgId: string) {
+  return makerequest(`/incidents/${incidentId}/updates`, {
+    method: 'POST',
+    body: JSON.stringify(updateData),
+  }, orgId);
+}
+
+// --- Maintenance Scheduling API Calls ---
+
+// Schedule maintenance (as an incident)
+export async function scheduleMaintenanceApi(maintenanceData: MaintenanceData, orgId: string) {
+  // maintenanceData should match backend IncidentCreate
+  return makerequest('/incidents', {
+    method: 'POST',
+    body: JSON.stringify(maintenanceData),
+  }, orgId);
+}
+
+// Remove scheduledStart, scheduledEnd, isMaintenance from types
+// Only allow status: 'under_maintenance' for maintenance
+export type ServiceUpdate = {
+  name: string;
+  description: string;
+  status: string;
+  uptime?: string;
+  link?: string;
 }; 

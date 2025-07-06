@@ -16,9 +16,6 @@ export const OrgRoleBasedAccess = ({ allowedRoles, fallback = null, children }: 
   
     const cleanedAllowedRoles = allowedRoles.map((r) => r.trim());
   
-    console.log("orgRole:", rawRole);
-    console.log("Normalized role:", normalizedRole);
-    console.log("Allowed roles:", cleanedAllowedRoles);
   
     if (!normalizedRole || !cleanedAllowedRoles.includes(normalizedRole)) {
       console.warn("Access denied: role", normalizedRole);

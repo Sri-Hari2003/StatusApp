@@ -87,6 +87,16 @@ function App() {
           }
         />
         <Route
+          path="/services"
+          element={
+            <SignedIn>
+              <AppLayout>
+                <DashboardPage />
+              </AppLayout>
+            </SignedIn>
+          }
+        />
+        <Route
           path="/services/:id"
           element={
             <SignedIn>

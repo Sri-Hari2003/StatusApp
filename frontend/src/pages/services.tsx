@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { mockServices, mockIncidentTimeline, getServicesByOrg, getIncidentsByOrg } from "../lib/mockData";
+// import { mockServices, mockIncidentTimeline, getServicesByOrg, getIncidentsByOrg } from "../lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
@@ -16,7 +16,7 @@ import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
 import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useOrganization } from "@clerk/clerk-react";
+import { useOrganization, useAuth } from "@clerk/clerk-react";
 import { useServiceCount } from "../App";
 import { Calendar24 } from "@/components/Calendar24";
 import { 
@@ -30,7 +30,21 @@ import {
   type Service,
   type Incident,
   type Update,
-  type MaintenanceData
+  type MaintenanceData,
+  updateService,
+  deleteService,
+  deleteIncident,
+  deleteIncidentUpdate,
+  getServicesFromApi,
+  getIncidentsFromApi,
+  deleteServiceApi,
+  updateServiceApi,
+  deleteIncidentApi,
+  updateIncidentApi,
+  createServiceApi,
+  createIncidentApi,
+  addIncidentUpdateApi,
+  scheduleMaintenanceApi
 } from "../lib/requests";
 
 const statusColors: Record<string, string> = {
@@ -70,27 +84,47 @@ const statusIcons = {
 const ServicesPage: React.FC = () => {
   const { organization } = useOrganization();
   const { setServiceCount } = useServiceCount();
+  const { orgId } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
-  const [servicesState, setServicesState] = useState(mockServices);
-  const [incidentsState, setIncidentsState] = useState(mockIncidentTimeline);
+  const [servicesState, setServicesState] = useState<Service[]>([]);
+  const [incidentsState, setIncidentsState] = useState<Incident[]>([]);
   
   // Update services and incidents when organization changes
   useEffect(() => {
-    if (organization?.id) {
-      const orgServices = getServicesByOrg(organization.id);
-      const orgIncidents = getIncidentsByOrg(organization.id);
-      setServicesState(orgServices);
-      setIncidentsState(orgIncidents);
-      setServiceCount(orgServices.length);
+    async function fetchData() {
+      if (orgId) {
+        try {
+          const orgServices = await getServicesFromApi(orgId);
+          const orgIncidents = await getIncidentsFromApi(orgId);
+          setServicesState(orgServices);
+          setIncidentsState(orgIncidents);
+          setServiceCount(orgServices.length);
+        } catch (err) {
+          // handle error, e.g. toast.error
+        }
+      }
     }
-  }, [organization?.id, setServiceCount]);
+    fetchData();
+  }, [orgId, setServiceCount]);
 
-  const initialServiceId = Number(params["*"] || params.id || params.serviceId) || servicesState[0]?.id;
+  const serviceIdParam = Number(params["*"] || params.id || params.serviceId);
+
+  useEffect(() => {
+    if (servicesState.length === 0) return;
+    const idx = servicesState.findIndex((s) => s.id === serviceIdParam);
+    if (idx >= 0) {
+      setSelectedIdx(idx);
+    } else if (servicesState.length > 0) {
+      setSelectedIdx(0);
+      navigate(`/services/${servicesState[0].id}`, { replace: true });
+    }
+  }, [serviceIdParam, servicesState, navigate]);
+
   const initialIdx = React.useMemo(() => {
-    const idx = servicesState.findIndex((s) => s.id === initialServiceId);
+    const idx = servicesState.findIndex((s: Service) => s.id === serviceIdParam);
     return idx >= 0 ? idx : 0;
-  }, [initialServiceId, servicesState]);
+  }, [serviceIdParam, servicesState]);
   const [selectedIdx, setSelectedIdx] = React.useState(initialIdx);
   const emblaApiRef = React.useRef<any>(null);
   const [incidentDialogOpen, setIncidentDialogOpen] = React.useState(false);
@@ -121,12 +155,26 @@ const ServicesPage: React.FC = () => {
   const [maintenanceDuration, setMaintenanceDuration] = useState("");
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const isMobile = useIsMobile();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [serviceToEdit, setServiceToEdit] = useState<Service | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStatus, setEditStatus] = useState('');
+  const [editLink, setEditLink] = useState('');
+  const [deleteIncidentDialogOpen, setDeleteIncidentDialogOpen] = useState(false);
+  const [incidentToDelete, setIncidentToDelete] = useState<Incident | null>(null);
+  const [deleteUpdateIdx, setDeleteUpdateIdx] = useState<number | null>(null);
+  const [deleteDrawerIncidentDialogOpen, setDeleteDrawerIncidentDialogOpen] = useState(false);
+  const [confirmMaintenanceOpen, setConfirmMaintenanceOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   const service = servicesState[selectedIdx];
-  const incidents = incidentsState.filter((inc) => inc.serviceId === service.id);
+  const incidents = service
+    ? incidentsState.filter((inc: Incident) => inc.serviceId === service.id)
+    : [];
 
   // Before rendering the Incident Timeline
-  const filteredIncidents = incidentFilter === 'active' ? incidents.filter(inc => inc.status !== 'resolved') : incidents;
+  const filteredIncidents = incidentFilter === 'active' ? incidents.filter((inc: Incident) => inc.status !== 'resolved') : incidents;
 
   useLayoutEffect(() => {
     const measureHeight = () => {
@@ -167,25 +215,37 @@ const ServicesPage: React.FC = () => {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleCreateIncident = () => {
-    if (!organization?.id) return;
-    
-    const success = createIncident(
-      {
-        name: newIncidentName,
-        description: newIncidentDesc,
-        serviceId: service.id
-      },
-      organization.id,
-      servicesState,
-      setIncidentsState,
-      service.id
-    );
+  useEffect(() => {
+    // If there is no serviceId in the URL and no services, redirect to dashboard
+    if (!params["*"] && !params.id && !params.serviceId) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [params, navigate]);
 
-    if (success) {
+  const handleCreateIncident = async () => {
+    if (!orgId) return toast.error('No orgId');
+    if (!service) return toast.error('No service selected');
+    try {
+      await createIncidentApi({
+        title: newIncidentName,
+        serviceId: service.id,
+        status: 'investigating',
+        updates: [{
+          status: 'investigating',
+          timestamp: new Date().toISOString(),
+          message: newIncidentDesc || 'Incident created.'
+        }],
+        message: newIncidentDesc || 'Incident created.'
+      }, orgId);
+      toast.success('Incident created');
       setIncidentDialogOpen(false);
       setNewIncidentName("");
       setNewIncidentDesc("");
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+    } catch (err) {
+      toast.error('Failed to create incident');
     }
   };
 
@@ -208,78 +268,276 @@ const ServicesPage: React.FC = () => {
     setEditUpdateStatus("");
   };
 
-  const handleSaveEdit = (idx: number) => {
-    editUpdate(
-      idx,
-      {
-        description: editUpdateDesc,
-        status: editUpdateStatus
-      },
-      setLocalUpdates,
-      setEditingUpdateIdx,
-      setEditUpdateDesc,
-      setEditUpdateStatus
-    );
+  const handleSaveEdit = async (idx: number) => {
+    if (!selectedIncident || !orgId) return toast.error('No incident or orgId');
+    try {
+      const updates = [...localUpdates];
+      updates[idx] = {
+        ...updates[idx],
+        message: editUpdateDesc,
+        status: editUpdateStatus,
+      };
+      await updateIncidentApi(selectedIncident.id, { updates }, orgId);
+      toast.success('Update edited');
+      setEditingUpdateIdx(null);
+      setEditUpdateDesc("");
+      setEditUpdateStatus("");
+      // Refresh incidents and update local updates
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+      const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
+      setSelectedIncident(updatedIncident);
+      setLocalUpdates(updatedIncident ? updatedIncident.updates : []);
+    } catch (err) {
+      toast.error('Failed to edit update');
+    }
   };
 
-  const handleSaveUpdate = () => {
-    addUpdate(
-      {
-        description: newUpdateDesc,
-        status: newUpdateStatus
-      },
-      setLocalUpdates,
-      setSelectedIncident,
-      setNewUpdateDesc,
-      setNewUpdateStatus
-    );
+  const handleSaveUpdate = async () => {
+    if (!selectedIncident || !orgId) return toast.error('No incident or orgId');
+    try {
+      await addIncidentUpdateApi(selectedIncident.id, {
+        message: newUpdateDesc,
+        status: newUpdateStatus,
+        timestamp: new Date().toISOString(),
+      }, orgId);
+      toast.success('Update added');
+      setNewUpdateDesc("");
+      setNewUpdateStatus("");
+      // Refresh incidents and update local updates
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+      const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
+      setSelectedIncident(updatedIncident);
+      setLocalUpdates(updatedIncident ? updatedIncident.updates : []);
+    } catch (err) {
+      toast.error('Failed to add update');
+    }
   };
 
   const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
 
-  const handleCreateService = () => {
-    if (!organization?.id) return;
-    
-    const success = createService(
-      {
+  const handleCreateService = async () => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await createServiceApi({
         name: newServiceName,
         description: newServiceDesc,
         status: newServiceStatus,
         link: newServiceLink
-      },
-      organization.id,
-      setServicesState,
-      setServiceCount
-    );
-
-    if (success) {
+      }, orgId);
+      toast.success('Service created');
       setServiceDialogOpen(false);
       setNewServiceName("");
       setNewServiceDesc("");
       setNewServiceStatus("");
       setNewServiceLink("");
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServicesState(orgServices);
+      setServiceCount(orgServices.length);
+      setSelectedIdx(orgServices.length > 0 ? 0 : -1);
+      if (orgServices.length > 0) {
+        navigate(`/services/${orgServices[0].id}`, { replace: true });
+      } else {
+        navigate('/services', { replace: true });
+      }
+    } catch (err) {
+      toast.error('Failed to create service');
     }
   };
 
-  const handleScheduleMaintenance = (maintenanceData: MaintenanceData) => {
-    if (!organization?.id) return;
-    
-    const success = scheduleMaintenance(
-      maintenanceData,
-      organization.id,
-      service.id,
-      servicesState,
-      setIncidentsState,
-      setServicesState
-    );
-
-    if (success) {
+  const handleScheduleMaintenance = async (maintenanceData: MaintenanceData) => {
+    if (!orgId) return toast.error('No orgId');
+    if (!maintenanceDate || !maintenanceTime || !maintenanceDuration) {
+      toast.error('Please provide date, time, and duration for maintenance.');
+      return;
+    }
+    const start = new Date(maintenanceDate.toDateString() + 'T' + maintenanceTime);
+    if (isNaN(start.getTime())) {
+      toast.error('Invalid start date/time.');
+      return;
+    }
+    const durationMs = parseInt(maintenanceDuration, 10) * 60 * 1000;
+    const end = new Date(start.getTime() + durationMs);
+    try {
+      await scheduleMaintenanceApi({
+        ...maintenanceData,
+        scheduledStart: start.toISOString(),
+        scheduledEnd: end.toISOString(),
+      }, orgId);
+      toast.success('Maintenance scheduled');
       setMaintenanceDialogOpen(false);
       setMaintenanceTitle("");
       setMaintenanceDesc("");
       setMaintenanceDate(undefined);
       setMaintenanceTime("");
       setMaintenanceDuration("");
+      // Refresh incidents and services
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+      const orgServices = await getServicesFromApi(orgId);
+      setServicesState(orgServices);
+      setServiceCount(orgServices.length);
+    } catch (err) {
+      toast.error('Failed to schedule maintenance');
+    }
+  };
+
+  // Open edit dialog
+  const handleEditService = (svc: Service) => {
+    setServiceToEdit(svc);
+    setEditName(svc.name);
+    setEditDesc(svc.description || '');
+    setEditStatus(svc.status);
+    setEditLink(svc.link || '');
+    setEditDialogOpen(true);
+  };
+
+  // Save edited service
+  const handleSaveEditService = async () => {
+    if (!serviceToEdit) return;
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await updateServiceApi(serviceToEdit.id, {
+        ...serviceToEdit,
+        name: editName,
+        description: editDesc,
+        status: editStatus,
+        link: editLink,
+      }, orgId);
+      toast.success('Service updated');
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServicesState(orgServices);
+      setServiceCount(orgServices.length);
+      setEditDialogOpen(false);
+      setServiceToEdit(null);
+    } catch (err) {
+      toast.error('Failed to update service');
+    }
+  };
+
+  // Delete service
+  const handleDeleteService = async (serviceId: number) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await deleteServiceApi(serviceId, orgId);
+      toast.success('Service deleted');
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServicesState(orgServices);
+      setServiceCount(orgServices.length);
+      setEditDialogOpen(false);
+      setServiceToEdit(null);
+      const newIdx = orgServices.length > 0 ? 0 : -1;
+      setSelectedIdx(newIdx);
+      // Update URL param to match new selection
+      if (orgServices.length > 0) {
+        navigate(`/services/${orgServices[0].id}`, { replace: true });
+      } else {
+        navigate('/services', { replace: true });
+      }
+    } catch (err) {
+      toast.error('Failed to delete service');
+    }
+  };
+
+  // Open delete incident dialog
+  const handleDeleteIncidentClick = (incident: Incident) => {
+    setIncidentToDelete(incident);
+    setDeleteIncidentDialogOpen(true);
+  };
+
+  // Confirm delete incident
+  const handleConfirmDeleteIncident = async () => {
+    if (!incidentToDelete) return;
+    await handleDeleteIncident(incidentToDelete.id);
+    setDeleteIncidentDialogOpen(false);
+    setIncidentToDelete(null);
+  };
+
+  // Delete update from incident
+  const handleDeleteUpdate = (idx: number) => {
+    setDeleteUpdateIdx(idx);
+  };
+
+  const handleConfirmDeleteUpdate = async () => {
+    if (deleteUpdateIdx === null || !selectedIncident || !orgId) return;
+    try {
+      const updates = localUpdates.filter((_, idx) => idx !== deleteUpdateIdx);
+      await updateIncidentApi(selectedIncident.id, { updates }, orgId);
+      toast.success('Update deleted');
+      setDeleteUpdateIdx(null);
+      // Refresh incidents and update local updates
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+      const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
+      setSelectedIncident(updatedIncident);
+      setLocalUpdates(updatedIncident ? updatedIncident.updates : []);
+    } catch (err) {
+      toast.error('Failed to delete update');
+    }
+  };
+
+  // Open delete incident dialog (from drawer)
+  const handleDeleteDrawerIncidentClick = () => {
+    setIncidentToDelete(selectedIncident);
+    setDeleteDrawerIncidentDialogOpen(true);
+  };
+
+  // Confirm delete incident (from drawer)
+  const handleConfirmDeleteDrawerIncident = async () => {
+    if (!incidentToDelete) return;
+    await handleDeleteIncident(incidentToDelete.id);
+    setDeleteDrawerIncidentDialogOpen(false);
+    setIncidentToDelete(null);
+    setDrawerOpen(false);
+  };
+
+  // Handler to update a service
+  const handleUpdateService = async (serviceId: number, updateData: Partial<Service>) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await updateServiceApi(serviceId, updateData, orgId);
+      toast.success('Service updated');
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServicesState(orgServices);
+      setServiceCount(orgServices.length);
+    } catch (err) {
+      toast.error('Failed to update service');
+    }
+  };
+
+  // Handler to delete an incident
+  const handleDeleteIncident = async (incidentId: number) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await deleteIncidentApi(incidentId, orgId);
+      toast.success('Incident deleted');
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+      setDeleteIncidentDialogOpen(false);
+      setIncidentToDelete(null);
+      setDrawerOpen(false);
+    } catch (err) {
+      toast.error('Failed to delete incident');
+    }
+  };
+
+  // Handler to update an incident
+  const handleUpdateIncident = async (incidentId: number, updateData: Partial<Incident>) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await updateIncidentApi(incidentId, updateData, orgId);
+      toast.success('Incident updated');
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setIncidentsState(orgIncidents);
+    } catch (err) {
+      toast.error('Failed to update incident');
     }
   };
 
@@ -429,101 +687,6 @@ const ServicesPage: React.FC = () => {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
-                <Dialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 hover:border-blue-700 transition">
-                      <Wrench className="mr-2 h-4 w-4" /> Schedule Maintenance
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Schedule Maintenance</DialogTitle>
-                      <DialogDescription>Schedule maintenance for {service.name}.</DialogDescription>
-                    </DialogHeader>
-                    <Separator />
-                    <div className="space-y-4 py-2">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Service</label>
-                        <input
-                          className="w-full border rounded-lg p-3 text-sm bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 cursor-not-allowed"
-                          value={service.name}
-                          disabled
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Maintenance Title</label>
-                        <input
-                          className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          value={maintenanceTitle}
-                          onChange={e => setMaintenanceTitle(e.target.value)}
-                          placeholder="e.g., Database Maintenance - Performance Optimization"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Description</label>
-                        <textarea
-                          className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          rows={3}
-                          value={maintenanceDesc}
-                          onChange={e => setMaintenanceDesc(e.target.value)}
-                          placeholder="Describe the maintenance work (optional)"
-                        />
-                      </div>
-                      <div className="flex gap-4">
-                        <Calendar24
-                          date={maintenanceDate}
-                          setDate={setMaintenanceDate}
-                          time={maintenanceTime}
-                          setTime={setMaintenanceTime}
-                        />
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium mb-2">Duration (minutes)</label>
-                          <input
-                            className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            type="number"
-                            min="1"
-                            value={maintenanceDuration}
-                            onChange={e => setMaintenanceDuration(e.target.value)}
-                            placeholder="Enter duration in minutes"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <Separator />
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <Button
-                        onClick={() => {
-                          if (!maintenanceTitle || !maintenanceDate || !maintenanceTime || !maintenanceDuration) {
-                            toast.error("Please fill in all required fields");
-                            return;
-                          }
-                          
-                          try {
-                            const start = new Date(maintenanceDate.toDateString() + 'T' + maintenanceTime);
-                            const durationMs = parseInt(maintenanceDuration, 10) * 60 * 1000;
-                            const end = new Date(start.getTime() + durationMs);
-                            
-                            handleScheduleMaintenance({
-                              title: maintenanceTitle,
-                              description: maintenanceDesc,
-                              scheduledStart: start.toISOString(),
-                              scheduledEnd: end.toISOString(),
-                            });
-                          } catch (error) {
-                            console.error('Error scheduling maintenance:', error);
-                            toast.error("Failed to schedule maintenance");
-                          }
-                        }}
-                        disabled={!maintenanceTitle || !maintenanceDate || !maintenanceTime || !maintenanceDuration}
-                      >
-                        Schedule Maintenance
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </OrgRoleBasedAccess>
             </div>
           </div>
@@ -556,11 +719,14 @@ const ServicesPage: React.FC = () => {
                       return (
                         <CarouselItem key={svc.id} className="flex justify-center items-stretch overflow-visible">
                           <Card className={`w-full max-w-sm px-4 py-3 flex flex-col justify-center overflow-visible transition-all duration-300 hover:shadow-lg border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:border-blue-900 dark:hover:bg-blue-900 ${selectedIdx === idx ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-zinc-200 bg-white dark:bg-zinc-900'}`}>
-                            <CardHeader className="pb-3 px-3">
-                              <CardTitle className="flex items-center justify-between text-base mb-2">
+                            <CardHeader className="pb-3 px-3 flex items-center justify-between">
+                              <CardTitle className="flex items-center text-base mb-2">
                                 <span className="truncate font-semibold group-hover:text-blue-600 transition-colors text-gray-900 dark:text-zinc-100">{svc.name}</span>
-                                <span className={`w-4 h-4 rounded-full ${statusColors[svc.status]} shadow-lg ring-2 ring-white`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
+                                <span className={`w-4 h-4 rounded-full ${statusColors[svc.status]} shadow-lg ring-2 ring-white ml-2`} title={statusLabels[svc.status] || svc.status.replace("_", " ")}></span>
                               </CardTitle>
+                              <Button size="icon" variant="ghost" onClick={() => handleEditService(svc)} className="ml-2">
+                                <Pencil className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
+                              </Button>
                             </CardHeader>
                             <CardContent className="space-y-3 px-3 py-0 overflow-visible">
                               <div className="flex flex-wrap items-center gap-2">
@@ -701,11 +867,13 @@ const ServicesPage: React.FC = () => {
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <CardTitle className="text-lg leading-tight pr-2 font-semibold">{incident.title}</CardTitle>
-                          <OrgRoleBasedAccess allowedRoles={["admin"]}>
-                            <Button size="sm" variant="ghost" onClick={() => handleIncidentClick(incident)} className="shrink-0 hover:bg-blue-100 dark:hover:bg-zinc-700 cursor-pointer">
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                          </OrgRoleBasedAccess>
+                          <div className="flex gap-2">
+                            <OrgRoleBasedAccess allowedRoles={["admin"]}>
+                              <Button size="sm" variant="ghost" onClick={() => handleIncidentClick(incident)} className="shrink-0 hover:bg-blue-100 dark:hover:bg-zinc-700 cursor-pointer">
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            </OrgRoleBasedAccess>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
@@ -760,132 +928,262 @@ const ServicesPage: React.FC = () => {
 
       {/* Drawer for editing incidents */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-  <DrawerContent className="max-h-[90vh] bg-white dark:bg-zinc-900">
-    <DrawerHeader className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
-      <DrawerTitle className="text-xl font-bold text-gray-900 dark:text-zinc-100">
-        Incident Management
-      </DrawerTitle>
-      <DrawerDescription>
-        {selectedIncident && (
-          <div className="space-y-3 mt-3">
-            <div className="font-semibold text-lg text-gray-800 dark:text-zinc-200">
-              {selectedIncident.title}
-            </div>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                Created: {new Date(selectedIncident.created_at).toLocaleString()}
-              </span>
-              {localUpdates.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 dark:text-zinc-400 font-medium">Current Status:</span>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                    localUpdates[localUpdates.length - 1].status === 'resolved'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : localUpdates[localUpdates.length - 1].status === 'investigating'
-                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                      : localUpdates[localUpdates.length - 1].status === 'identified'
-                      ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                  }`}>
-                    {statusIcons[localUpdates[localUpdates.length - 1].status as keyof typeof statusIcons]}
-                    <span className="ml-1 capitalize">{localUpdates[localUpdates.length - 1].status}</span>
-                  </span>
+        <DrawerContent className="max-h-[90vh] bg-white dark:bg-zinc-900">
+          <DrawerHeader className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900">
+            <DrawerTitle className="text-xl font-bold text-gray-900 dark:text-zinc-100">
+              Incident Management
+            </DrawerTitle>
+            <DrawerDescription>
+              {selectedIncident && (
+                <div className="space-y-3 mt-3">
+                  <div className="font-semibold text-lg text-gray-800 dark:text-zinc-200">
+                    {selectedIncident.title}
+                  </div>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      Created: {new Date(selectedIncident.created_at).toLocaleString()}
+                    </span>
+                    {localUpdates.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 dark:text-zinc-400 font-medium">Current Status:</span>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                          localUpdates[localUpdates.length - 1].status === 'resolved'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : localUpdates[localUpdates.length - 1].status === 'investigating'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            : localUpdates[localUpdates.length - 1].status === 'identified'
+                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        }`}>
+                          {statusIcons[localUpdates[localUpdates.length - 1].status as keyof typeof statusIcons]}
+                          <span className="ml-1 capitalize">{localUpdates[localUpdates.length - 1].status}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-      </DrawerDescription>
-    </DrawerHeader>
-    
-    {selectedIncident && (
-      <div className="px-6 pb-6 overflow-y-auto bg-gray-50 dark:bg-zinc-900">
-        <div className="space-y-6 py-6">
-          {/* Updates Timeline */}
-          <Card className="shadow-lg border-0 bg-white dark:bg-zinc-800 rounded-xl overflow-hidden">
-            <CardHeader className="border-b border-gray-100 dark:border-zinc-700 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-zinc-800 dark:to-zinc-700 py-4">
-              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
-                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                Updates Timeline
-                <span className="text-sm text-gray-500 dark:text-zinc-400 font-normal">
-                  ({localUpdates.length} update{localUpdates.length !== 1 ? 's' : ''})
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4 px-6 pb-6">
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                {[...localUpdates].slice().reverse().map((u, i, arr) => {
-                  const realIdx = localUpdates.length - 1 - i;
-                  const isEditing = editingUpdateIdx === realIdx;
-                  const isFirst = i === 0;
-                  
-                  return (
-                    <div key={i} className={`relative border rounded-xl p-4 transition-all duration-300 ${
-                      u.status === 'resolved' 
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800' 
-                        : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-zinc-800 dark:to-zinc-700 border-gray-200 dark:border-zinc-700'
-                    } ${isFirst ? ' ' : ''}`}>
-                      
-                      {/* Timeline connector */}
-                      {i < arr.length - 1 && (
-                        <div className="absolute -bottom-3 left-6 w-0.5 h-3 bg-gray-300 dark:bg-zinc-600"></div>
-                      )}
-                      
-                      {isEditing ? (
-                        u.status === 'created' ? (
-                          <div className="space-y-3">
-                            <textarea
-                              className="w-full border border-gray-300 dark:border-zinc-600 rounded-xl p-3 text-sm bg-gray-100 dark:bg-zinc-700 cursor-not-allowed"
-                              rows={2}
-                              value={editUpdateDesc}
-                              readOnly
-                            />
-                            <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus} disabled>
-                              <SelectTrigger className="w-full h-10 border border-gray-300 dark:border-zinc-600 rounded-xl bg-gray-100 dark:bg-zinc-700 cursor-not-allowed">
-                                <SelectValue placeholder="Created" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="created">Created</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <div className="flex justify-end pt-1">
-                              <Button size="sm" variant="outline" onClick={handleCancelEdit} className="rounded-lg">
-                                Cancel
-                              </Button>
+            </DrawerDescription>
+          </DrawerHeader>
+          
+          {selectedIncident && (
+            <div className="px-6 pb-6 overflow-y-auto bg-gray-50 dark:bg-zinc-900">
+              <div className="space-y-6 py-6">
+                {/* Updates Timeline */}
+                <Card className="shadow-lg border-0 bg-white dark:bg-zinc-800 rounded-xl overflow-hidden">
+                  <CardHeader className="border-b border-gray-100 dark:border-zinc-700 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-zinc-800 dark:to-zinc-700 py-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      Updates Timeline
+                      <span className="text-sm text-gray-500 dark:text-zinc-400 font-normal">
+                        ({localUpdates.length} update{localUpdates.length !== 1 ? 's' : ''})
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4 px-6 pb-6">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {[...localUpdates].slice().reverse().map((u, i, arr) => {
+                        const realIdx = localUpdates.length - 1 - i;
+                        const isEditing = editingUpdateIdx === realIdx;
+                        const isFirst = i === 0;
+                        return (
+                          <div key={i} className={`relative border rounded-xl p-4 transition-all duration-300 ${
+                            u.status === 'resolved' 
+                              ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800' 
+                              : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-zinc-800 dark:to-zinc-700 border-gray-200 dark:border-zinc-700'
+                          } ${isFirst ? ' ' : ''}`}>
+                            {/* Timeline connector */}
+                            {i < arr.length - 1 && (
+                              <div className="absolute -bottom-3 left-6 w-0.5 h-3 bg-gray-300 dark:bg-zinc-600"></div>
+                            )}
+                            {isEditing ? (
+                              u.status === 'created' ? (
+                                <div className="space-y-3">
+                                  <textarea
+                                    className="w-full border border-gray-300 dark:border-zinc-600 rounded-xl p-3 text-sm bg-gray-100 dark:bg-zinc-700 cursor-not-allowed"
+                                    rows={2}
+                                    value={editUpdateDesc}
+                                    readOnly
+                                  />
+                                  <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus} disabled>
+                                    <SelectTrigger className="w-full h-10 border border-gray-300 dark:border-zinc-600 rounded-xl bg-gray-100 dark:bg-zinc-700 cursor-not-allowed">
+                                      <SelectValue placeholder="Created" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="created">Created</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="flex justify-end pt-1">
+                                    <Button size="sm" variant="outline" onClick={handleCancelEdit} className="rounded-lg">
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <textarea
+                                    className="w-full border border-gray-200 dark:border-zinc-600 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700"
+                                    rows={2}
+                                    value={editUpdateDesc}
+                                    onChange={e => setEditUpdateDesc(e.target.value)}
+                                  />
+                                  <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus}>
+                                    <SelectTrigger className="w-full h-10 border border-gray-200 dark:border-zinc-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700">
+                                      <SelectValue placeholder="Select update status" />
+                                    </SelectTrigger>
+                                    <SelectContent className="border border-gray-200 dark:border-zinc-600 rounded-xl">
+                                      <SelectItem value="investigating">
+                                        <div className="flex items-center gap-2">
+                                          {statusIcons.investigating}
+                                          Investigating
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="identified">
+                                        <div className="flex items-center gap-2">
+                                          {statusIcons.identified}
+                                          Identified
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="monitoring">
+                                        <div className="flex items-center gap-2">
+                                          {statusIcons.monitoring}
+                                          Monitoring
+                                        </div>
+                                      </SelectItem>
+                                      <SelectItem value="resolved">
+                                        <div className="flex items-center gap-2">
+                                          {statusIcons.resolved}
+                                          Resolved
+                                        </div>
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <div className="flex gap-2 justify-end pt-1">
+                                    <Button size="sm" variant="outline" onClick={handleCancelEdit} className="rounded-lg">
+                                      Cancel
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => handleSaveEdit(realIdx)} 
+                                      disabled={!editUpdateDesc || !editUpdateStatus}
+                                      className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                      Save
+                                    </Button>
+                                    <OrgRoleBasedAccess allowedRoles={["admin"]}>
+                                      <Button size="sm" variant="destructive" onClick={() => handleDeleteUpdate(realIdx)} className="rounded-lg ml-2">
+                                        Delete
+                                      </Button>
+                                    </OrgRoleBasedAccess>
+                                  </div>
+                                </div>
+                              )
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      {statusIcons[u.status as keyof typeof statusIcons]}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium mb-2 text-gray-900 dark:text-zinc-100 leading-relaxed">
+                                        {u.message}
+                                      </p>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-600 dark:text-zinc-400 font-medium">
+                                          {new Date(u.timestamp).toLocaleString()}
+                                        </span>
+                                        {isFirst && (
+                                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                            Latest
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost" 
+                                    onClick={() => handleEditUpdate(realIdx, u)} 
+                                    className="shrink-0 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg p-2"
+                                  >
+                                    <Pencil className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Add Update Form */}
+                <Card className="shadow-lg border-0 bg-white dark:bg-zinc-800 rounded-xl overflow-hidden">
+                  <CardHeader className="border-b border-gray-100 dark:border-zinc-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-700 py-4">
+                    <CardTitle className="text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      Add Update
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 px-6 pb-6">
+                    {isResolved ? (
+                      <div className="text-sm bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 p-4 rounded-xl border border-green-200 dark:border-green-700">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <div>
+                            <div className="font-medium">Incident Resolved</div>
+                            <div className="text-xs text-green-700 dark:text-green-300 mt-1">
+                              This incident has been resolved. No further updates can be added.
                             </div>
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <textarea
-                              className="w-full border border-gray-200 dark:border-zinc-600 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700"
-                              rows={2}
-                              value={editUpdateDesc}
-                              onChange={e => setEditUpdateDesc(e.target.value)}
-                            />
-                            <Select value={editUpdateStatus} onValueChange={setEditUpdateStatus}>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-zinc-300">
+                            Update Description
+                          </label>
+                          <textarea
+                            className="w-full border border-gray-200 dark:border-zinc-600 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-400 transition-all duration-200"
+                            rows={3}
+                            placeholder="Describe the update in detail..."
+                            value={newUpdateDesc}
+                            onChange={e => setNewUpdateDesc(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-zinc-300">
+                              Status
+                            </label>
+                            <Select value={newUpdateStatus} onValueChange={setNewUpdateStatus}>
                               <SelectTrigger className="w-full h-10 border border-gray-200 dark:border-zinc-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700">
-                                <SelectValue placeholder="Select update status" />
+                                <SelectValue placeholder="Select status" />
                               </SelectTrigger>
                               <SelectContent className="border border-gray-200 dark:border-zinc-600 rounded-xl">
-                                <SelectItem value="investigating">
+                                <SelectItem value="investigating" className="py-2">
                                   <div className="flex items-center gap-2">
                                     {statusIcons.investigating}
                                     Investigating
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="identified">
+                                <SelectItem value="identified" className="py-2">
                                   <div className="flex items-center gap-2">
                                     {statusIcons.identified}
                                     Identified
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="monitoring">
+                                <SelectItem value="monitoring" className="py-2">
                                   <div className="flex items-center gap-2">
                                     {statusIcons.monitoring}
                                     Monitoring
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="resolved">
+                                <SelectItem value="resolved" className="py-2">
                                   <div className="flex items-center gap-2">
                                     {statusIcons.resolved}
                                     Resolved
@@ -893,156 +1191,155 @@ const ServicesPage: React.FC = () => {
                                 </SelectItem>
                               </SelectContent>
                             </Select>
-                            <div className="flex gap-2 justify-end pt-1">
-                              <Button size="sm" variant="outline" onClick={handleCancelEdit} className="rounded-lg">
-                                Cancel
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleSaveEdit(realIdx)} 
-                                disabled={!editUpdateDesc || !editUpdateStatus}
-                                className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
-                              >
-                                Save
-                              </Button>
-                            </div>
                           </div>
-                        )
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3 flex-1">
-                              <div className="flex-shrink-0 mt-0.5">
-                                {statusIcons[u.status as keyof typeof statusIcons]}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium mb-2 text-gray-900 dark:text-zinc-100 leading-relaxed">
-                                  {u.message}
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-600 dark:text-zinc-400 font-medium">
-                                    {new Date(u.timestamp).toLocaleString()}
-                                  </span>
-                                  {isFirst && (
-                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                      Latest
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <Button 
-                              size="sm" 
-                              variant="ghost" 
-                              onClick={() => handleEditUpdate(realIdx, u)} 
-                              className="shrink-0 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg p-2"
-                            >
-                              <Pencil className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
-                            </Button>
-                          </div>
+                          <Button 
+                            onClick={handleSaveUpdate} 
+                            disabled={!newUpdateDesc || !newUpdateStatus}
+                            className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Add Update
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Add Update Form */}
-          <Card className="shadow-lg border-0 bg-white dark:bg-zinc-800 rounded-xl overflow-hidden">
-            <CardHeader className="border-b border-gray-100 dark:border-zinc-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-800 dark:to-zinc-700 py-4">
-              <CardTitle className="text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                Add Update
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 px-6 pb-6">
-              {isResolved ? (
-                <div className="text-sm bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 p-4 rounded-xl border border-green-200 dark:border-green-700">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    <div>
-                      <div className="font-medium">Incident Resolved</div>
-                      <div className="text-xs text-green-700 dark:text-green-300 mt-1">
-                        This incident has been resolved. No further updates can be added.
                       </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-zinc-300">
-                      Update Description
-                    </label>
-                    <textarea
-                      className="w-full border border-gray-200 dark:border-zinc-600 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700 text-gray-900 dark:text-zinc-100 placeholder-gray-500 dark:placeholder-zinc-400 transition-all duration-200"
-                      rows={3}
-                      placeholder="Describe the update in detail..."
-                      value={newUpdateDesc}
-                      onChange={e => setNewUpdateDesc(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-zinc-300">
-                        Status
-                      </label>
-                      <Select value={newUpdateStatus} onValueChange={setNewUpdateStatus}>
-                        <SelectTrigger className="w-full h-10 border border-gray-200 dark:border-zinc-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 bg-white dark:bg-zinc-700">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent className="border border-gray-200 dark:border-zinc-600 rounded-xl">
-                          <SelectItem value="investigating" className="py-2">
-                            <div className="flex items-center gap-2">
-                              {statusIcons.investigating}
-                              Investigating
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="identified" className="py-2">
-                            <div className="flex items-center gap-2">
-                              {statusIcons.identified}
-                              Identified
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="monitoring" className="py-2">
-                            <div className="flex items-center gap-2">
-                              {statusIcons.monitoring}
-                              Monitoring
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="resolved" className="py-2">
-                            <div className="flex items-center gap-2">
-                              {statusIcons.resolved}
-                              Resolved
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button 
-                      onClick={handleSaveUpdate} 
-                      disabled={!newUpdateDesc || !newUpdateStatus}
-                      className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Add Update
+                    )}
+                  </CardContent>
+                </Card>
+                <OrgRoleBasedAccess allowedRoles={["admin"]}>
+                  <div className="flex justify-end mt-4">
+                    <Button variant="destructive" onClick={handleDeleteDrawerIncidentClick}>
+                      Delete Incident
                     </Button>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    )}
-    
-    <DrawerFooter className="border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-      {/* Footer content can be added here if needed */}
-    </DrawerFooter>
-  </DrawerContent>
-</Drawer>
+                </OrgRoleBasedAccess>
+              </div>
+            </div>
+          )}
+          
+          <DrawerFooter className="border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
+            {/* Footer content can be added here if needed */}
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Edit/Delete Service Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Service</DialogTitle>
+            <DialogDescription>Edit or delete this service.</DialogDescription>
+          </DialogHeader>
+          <Separator />
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-sm font-medium mb-2">Service Name</label>
+              <input
+                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="Enter service name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Description</label>
+              <textarea
+                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={2}
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                placeholder="Describe the service (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Status</label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="operational">Operational</SelectItem>
+                  <SelectItem value="partial_outage">Partial Outage</SelectItem>
+                  <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
+                  <SelectItem value="major_outage">Major Outage</SelectItem>
+                  <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Link</label>
+              <input
+                className="w-full border rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={editLink}
+                onChange={e => setEditLink(e.target.value)}
+                placeholder="https://example.com (optional)"
+                type="url"
+              />
+            </div>
+          </div>
+          <Separator />
+          <DialogFooter>
+            <Button variant="destructive" onClick={() => handleDeleteService(serviceToEdit?.id || 0)}>Delete</Button>
+            <Button onClick={handleSaveEditService} disabled={!editName || !editStatus}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Incident Confirmation Dialog (from drawer) */}
+      <Dialog open={deleteDrawerIncidentDialogOpen} onOpenChange={setDeleteDrawerIncidentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Incident</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this incident?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDrawerIncidentDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDeleteDrawerIncident}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Delete Update Confirmation Dialog */}
+      <Dialog open={deleteUpdateIdx !== null} onOpenChange={open => !open && setDeleteUpdateIdx(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Update</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this update?</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteUpdateIdx(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDeleteUpdate}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Set as Under Maintenance Dialog */}
+      <Dialog open={confirmMaintenanceOpen} onOpenChange={setConfirmMaintenanceOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set as Under Maintenance</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to set <b>{selectedService?.name}</b> as under maintenance?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              onClick={async () => {
+                if (!selectedService) return;
+                console.log('Calling updateServiceApi', selectedService.id, {
+                  ...selectedService,
+                  status: 'under_maintenance',
+                }, orgId || '');
+                await updateServiceApi(selectedService.id, {
+                  ...selectedService,
+                  status: 'under_maintenance',
+                }, orgId || '');
+                setConfirmMaintenanceOpen(false);
+              }}
+            >
+              Yes, Set as Under Maintenance
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

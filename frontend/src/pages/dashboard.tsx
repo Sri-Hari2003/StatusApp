@@ -33,21 +33,22 @@ import {
   DialogDescription,
   DialogClose
 } from "@/components/ui/dialog";
-import { mockServices, mockIncidentTimeline, getServicesByOrg, getIncidentsByOrg } from "../lib/mockData";
-import { SignedIn, SignedOut, RedirectToSignIn, useOrganization } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, RedirectToSignIn, useOrganization, useAuth } from "@clerk/clerk-react";
 import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useServiceCount } from "../App";
 import { Calendar24 } from "@/components/Calendar24";
 import {
-  createService,
-  createIncident,
-  addUpdate,
-  editUpdate,
-  scheduleMaintenanceByServiceName,
-  hasScheduledMaintenance,
-  getMaintenanceInfo,
-  getServiceName,
+  getServicesFromApi,
+  getIncidentsFromApi,
+  createServiceApi,
+  createIncidentApi,
+  updateServiceApi,
+  deleteServiceApi,
+  updateIncidentApi,
+  deleteIncidentApi,
+  addIncidentUpdateApi,
+  scheduleMaintenanceApi,
   type Service,
   type Incident,
   type Update,
@@ -72,6 +73,8 @@ const statusIcons = {
 const DashboardPage: React.FC = () => {
   const { organization } = useOrganization();
   const { setServiceCount } = useServiceCount();
+  const { orgId } = useAuth();
+  console.log('Dashboard orgId:', orgId);
   const [services, setServices] = useState<Service[]>([]);
   const [timeline, setTimeline] = useState<Incident[]>([]);
   const [search, setSearch] = useState("");
@@ -109,26 +112,38 @@ const DashboardPage: React.FC = () => {
   const isMobile = useIsMobile();
 
   const getServiceName = (id: number) => {
-    const source = services.length > 0 ? services : mockServices;
-    const service = source.find(s => s.id === id);
+    const service = services.find((s: Service) => s.id === id);
     return service ? service.name : "Unknown Service";
   };
 
   useEffect(() => {
-    if (organization?.id) {
-      const orgServices = getServicesByOrg(organization.id);
-      const orgIncidents = getIncidentsByOrg(organization.id);
-      setServices(orgServices);
-      setTimeline(orgIncidents);
-      setServiceCount(orgServices.length);
+    async function fetchData() {
+      if (orgId) {
+        try {
+          const orgServices = await getServicesFromApi(orgId);
+          const orgIncidents = await getIncidentsFromApi(orgId);
+          setServices(orgServices);
+          setTimeline(orgIncidents);
+          setServiceCount(orgServices.length);
+        } catch (err) {
+          // handle error, e.g. toast.error
+        }
+      }
     }
-  }, [organization?.id, setServiceCount]);
+    fetchData();
+  }, [orgId, setServiceCount]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (orgId && services && services.length === 0) {
+      navigate('/dashboard');
+    }
+  }, [orgId, services, navigate]);
 
   const filteredServices = services.filter(service =>
     service.name.toLowerCase().includes(search.toLowerCase())
@@ -202,16 +217,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const handleSaveUpdate = () => {
-    addUpdate(
-      {
-        description: newUpdateDesc,
-        status: newUpdateStatus
-      },
-      setLocalUpdates,
-      setSelectedIncident,
-      setNewUpdateDesc,
-      setNewUpdateStatus
-    );
+    // Placeholder for handleSaveUpdate
   };
 
   const isResolved = localUpdates.length > 0 && localUpdates[localUpdates.length - 1].status === 'resolved';
@@ -227,90 +233,128 @@ const DashboardPage: React.FC = () => {
     setEditUpdateStatus("");
   };
   const handleSaveEdit = (idx: number) => {
-    editUpdate(
-      idx,
-      {
-        description: editUpdateDesc,
-        status: editUpdateStatus
-      },
-      setLocalUpdates,
-      setEditingUpdateIdx,
-      setEditUpdateDesc,
-      setEditUpdateStatus
-    );
+    // Placeholder for handleSaveEdit
   };
 
-  const handleCreateIncident = () => {
-    if (!organization?.id) return;
+  const handleCreateIncident = async () => {
+    if (!orgId) return toast.error('No orgId');
     const serviceObj = services.find(s => s.name === newIncidentService);
-    if (!serviceObj) return;
-    const success = createIncident(
-      {
-        name: newIncidentName,
-        description: newIncidentDesc,
-        serviceId: serviceObj.id
-      },
-      organization.id,
-      services,
-      setTimeline,
-      serviceObj.id
-    );
-    if (success) {
+    if (!serviceObj) return toast.error('Service not found');
+    try {
+      await createIncidentApi({
+        title: newIncidentName,
+        serviceId: serviceObj.id,
+        status: 'investigating',
+        updates: [{
+          status: 'investigating',
+          timestamp: new Date().toISOString(),
+          message: newIncidentDesc || 'Incident created.'
+        }],
+        message: newIncidentDesc || 'Incident created.'
+      }, orgId);
+      toast.success('Incident created');
       setIncidentDialogOpen(false);
       setNewIncidentName("");
       setNewIncidentService("");
       setNewIncidentDesc("");
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setTimeline(orgIncidents);
+    } catch (err) {
+      toast.error('Failed to create incident');
     }
   };
 
-  const handleCreateService = () => {
-    if (!organization?.id) return;
-    const success = createService(
-      {
+  const handleCreateService = async () => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await createServiceApi({
         name: newServiceName,
         description: newServiceDesc,
         status: newServiceStatus,
         link: newServiceLink
-      },
-      organization.id,
-      setServices,
-      setServiceCount
-    );
-    if (success) {
+      }, orgId);
+      toast.success('Service created');
       setServiceDialogOpen(false);
       setNewServiceName("");
       setNewServiceDesc("");
       setNewServiceStatus("");
       setNewServiceLink("");
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServices(orgServices);
+      setServiceCount(orgServices.length);
+    } catch (err) {
+      toast.error('Failed to create service');
     }
   };
 
   const handleScheduleMaintenance = () => {
-    if (!organization?.id) return;
-    const success = scheduleMaintenanceByServiceName(
-      {
-        serviceName: maintenanceService,
-        title: maintenanceTitle,
-        description: maintenanceDesc,
-        date: maintenanceDate!,
-        time: maintenanceTime,
-        duration: maintenanceDuration
-      },
-      organization.id,
-      services,
-      setTimeline,
-      setServices
-    );
-    if (success) {
-      setMaintenanceDialogOpen(false);
-      setMaintenanceService("");
-      setMaintenanceTitle("");
-      setMaintenanceDesc("");
-      setMaintenanceDate(undefined);
-      setMaintenanceTime("");
-      setMaintenanceDuration("");
+    // Placeholder for handleScheduleMaintenance
+  };
+
+  // Handler to delete a service
+  const handleDeleteService = async (serviceId: number) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await deleteServiceApi(serviceId, orgId);
+      toast.success('Service deleted');
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServices(orgServices);
+      setServiceCount(orgServices.length);
+    } catch (err) {
+      toast.error('Failed to delete service');
     }
   };
+
+  // Handler to update a service
+  const handleUpdateService = async (serviceId: number, updateData: Partial<Service>) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await updateServiceApi(serviceId, updateData, orgId);
+      toast.success('Service updated');
+      // Refresh services
+      const orgServices = await getServicesFromApi(orgId);
+      setServices(orgServices);
+      setServiceCount(orgServices.length);
+    } catch (err) {
+      toast.error('Failed to update service');
+    }
+  };
+
+  // Handler to delete an incident
+  const handleDeleteIncident = async (incidentId: number) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await deleteIncidentApi(incidentId, orgId);
+      toast.success('Incident deleted');
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setTimeline(orgIncidents);
+    } catch (err) {
+      toast.error('Failed to delete incident');
+    }
+  };
+
+  // Handler to update an incident
+  const handleUpdateIncident = async (incidentId: number, updateData: Partial<Incident>) => {
+    if (!orgId) return toast.error('No orgId');
+    try {
+      await updateIncidentApi(incidentId, updateData, orgId);
+      toast.success('Incident updated');
+      // Refresh incidents
+      const orgIncidents = await getIncidentsFromApi(orgId);
+      setTimeline(orgIncidents);
+    } catch (err) {
+      toast.error('Failed to update incident');
+    }
+  };
+
+  // Count services under maintenance
+  const servicesUnderMaintenance = services.filter(s => s.status === 'under_maintenance');
+  // Count active incidents (not resolved, not maintenance)
+  const activeIncidentsTrue = sortedTimeline.filter(inc => inc.status !== 'resolved' && inc.status !== 'under_maintenance');
 
   return (
     <div className="flex-1 bg-slate-50 dark:bg-zinc-900">
@@ -465,19 +509,23 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Status Banner */}
-        <div className="mb-8">
-          <div className={`rounded-xl px-6 py-4 shadow-sm border-l-4 flex items-center gap-4 transition-all duration-300 bg-red-50 dark:bg-red-900/40 border-l-red-500 text-red-800 dark:text-red-200`}>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-100 dark:bg-red-800">
-                <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-300" />
-              </div>
-              <div>
-                <div className="font-semibold text-lg">7 Active Incidents</div>
-                <div className="text-sm opacity-75">Some services may be experiencing issues</div>
+        {servicesUnderMaintenance.length > 0 && (
+          <div className="mb-8">
+            <div className={`rounded-xl px-6 py-4 shadow-sm border-l-4 flex items-center gap-4 transition-all duration-300 bg-red-50 dark:bg-red-900/40 border-l-red-500 text-red-800 dark:text-red-200`}>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-800">
+                  <Wrench className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                </div>
+                <div>
+                  <div className="font-semibold text-lg">
+                    {servicesUnderMaintenance.length} Service{servicesUnderMaintenance.length > 1 ? 's' : ''} Under Maintenance
+                  </div>
+                  <div className="text-sm opacity-75">Some services may be experiencing issues</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Services Section */}
         <div className="mb-8">
