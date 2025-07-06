@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { Link, useLocation } from "react-router-dom"
-import { useUser, useOrganization, OrganizationSwitcher } from "@clerk/clerk-react"
-import { ChevronLeft, ChevronRight, LayoutDashboard, Settings, Users, Home, Menu, Moon, Sun } from "lucide-react"
+import { useUser, OrganizationSwitcher } from "@clerk/clerk-react"
+import { LayoutDashboard, Menu, Moon, Sun } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
 import {

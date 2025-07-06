@@ -5,9 +5,6 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
 import {
   ChartContainer,
@@ -16,13 +13,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 export const description = "An interactive area chart"
 
@@ -47,7 +37,7 @@ const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, char
         >
           <AreaChart data={chartData}>
             <defs>
-              {serviceKeys.map((key, idx) => (
+              {serviceKeys.map((key) => (
                 <linearGradient key={key} id={`fill${key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop
                     offset="10%"

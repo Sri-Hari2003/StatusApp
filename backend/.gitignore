@@ -1,0 +1,22 @@
+ # Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore environment variables
+.env
+
+# Ignore database files (if using SQLite)
+*.db
+*.sqlite3
+
+# Ignore logs
+*.log
+
+# Ignore virtual environments
+venv/
+.envrc
+
+# Ignore migrations (if using Alembic or similar)
+migrations/

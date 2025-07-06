@@ -1,6 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-// import { mockServices, mockIncidentTimeline, getServicesByOrg, getIncidentsByOrg } from "../lib/mockData";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
@@ -16,25 +15,13 @@ import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
 import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile"
-import { useOrganization, useAuth } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { useServiceCount } from "../App";
-import { Calendar24 } from "@/components/Calendar24";
 import { 
-  createService, 
-  createIncident, 
-  addUpdate, 
-  editUpdate, 
-  scheduleMaintenance, 
   hasScheduledMaintenance, 
   getMaintenanceInfo,
   type Service,
   type Incident,
-  type Update,
-  type MaintenanceData,
-  updateService,
-  deleteService,
-  deleteIncident,
-  deleteIncidentUpdate,
   getServicesFromApi,
   getIncidentsFromApi,
   deleteServiceApi,
@@ -44,7 +31,6 @@ import {
   createServiceApi,
   createIncidentApi,
   addIncidentUpdateApi,
-  scheduleMaintenanceApi
 } from "../lib/requests";
 
 const statusColors: Record<string, string> = {
@@ -63,13 +49,11 @@ const statusLabels: Record<string, string> = {
   under_maintenance: "Under Maintenance"
 };
 
-// Helper to get status color for update
 const updateStatusColors: Record<string, string> = {
   resolved: 'bg-green-100 text-green-800',
   monitoring: 'bg-yellow-100 text-yellow-800',
   investigating: 'bg-red-100 text-red-800',
   identified: 'bg-orange-100 text-orange-800',
-  // Add more as needed
 };
 
 const statusIcons = {
@@ -79,10 +63,7 @@ const statusIcons = {
   investigating: <Clock className="text-gray-500 w-4 h-4 mr-1" />
 };
 
-
-
 const ServicesPage: React.FC = () => {
-  const { organization } = useOrganization();
   const { setServiceCount } = useServiceCount();
   const { orgId } = useAuth();
   const params = useParams();
@@ -90,7 +71,6 @@ const ServicesPage: React.FC = () => {
   const [servicesState, setServicesState] = useState<Service[]>([]);
   const [incidentsState, setIncidentsState] = useState<Incident[]>([]);
   
-  // Update services and incidents when organization changes
   useEffect(() => {
     async function fetchData() {
       if (orgId) {
@@ -101,7 +81,6 @@ const ServicesPage: React.FC = () => {
           setIncidentsState(orgIncidents);
           setServiceCount(orgServices.length);
         } catch (err) {
-          // handle error, e.g. toast.error
         }
       }
     }
@@ -147,13 +126,6 @@ const ServicesPage: React.FC = () => {
   const [newServiceLink, setNewServiceLink] = useState("");
   const [scrolled, setScrolled] = useState(false);
   const [incidentFilter, setIncidentFilter] = useState<'all' | 'active'>('all');
-  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
-  const [maintenanceTitle, setMaintenanceTitle] = useState("");
-  const [maintenanceDesc, setMaintenanceDesc] = useState("");
-  const [maintenanceDate, setMaintenanceDate] = useState<Date | undefined>(undefined);
-  const [maintenanceTime, setMaintenanceTime] = useState("");
-  const [maintenanceDuration, setMaintenanceDuration] = useState("");
-  const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const isMobile = useIsMobile();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [serviceToEdit, setServiceToEdit] = useState<Service | null>(null);
@@ -173,7 +145,6 @@ const ServicesPage: React.FC = () => {
     ? incidentsState.filter((inc: Incident) => inc.serviceId === service.id)
     : [];
 
-  // Before rendering the Incident Timeline
   const filteredIncidents = incidentFilter === 'active' ? incidents.filter((inc: Incident) => inc.status !== 'resolved') : incidents;
 
   useLayoutEffect(() => {
@@ -187,7 +158,6 @@ const ServicesPage: React.FC = () => {
     return () => window.removeEventListener("resize", measureHeight);
   }, [incidents.length, selectedIdx]);
 
-  // Listen for carousel slide changes and update selectedIdx
   React.useEffect(() => {
     const api = emblaApiRef.current;
     if (!api) return;
@@ -201,7 +171,6 @@ const ServicesPage: React.FC = () => {
     };
   }, [emblaApiRef.current]);
 
-  // Update URL when selectedIdx changes
   React.useEffect(() => {
     const service = servicesState[selectedIdx];
     if (service) {
@@ -216,7 +185,6 @@ const ServicesPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // If there is no serviceId in the URL and no services, redirect to dashboard
     if (!params["*"] && !params.id && !params.serviceId) {
       navigate('/dashboard', { replace: true });
     }
@@ -241,7 +209,6 @@ const ServicesPage: React.FC = () => {
       setIncidentDialogOpen(false);
       setNewIncidentName("");
       setNewIncidentDesc("");
-      // Refresh incidents
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
     } catch (err) {
@@ -249,7 +216,6 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  // Edit/update logic
   const handleIncidentClick = (incident: any) => {
     setSelectedIncident(incident);
     setLocalUpdates(incident.updates);
@@ -282,7 +248,6 @@ const ServicesPage: React.FC = () => {
       setEditingUpdateIdx(null);
       setEditUpdateDesc("");
       setEditUpdateStatus("");
-      // Refresh incidents and update local updates
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
       const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
@@ -304,7 +269,6 @@ const ServicesPage: React.FC = () => {
       toast.success('Update added');
       setNewUpdateDesc("");
       setNewUpdateStatus("");
-      // Refresh incidents and update local updates
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
       const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
@@ -332,7 +296,6 @@ const ServicesPage: React.FC = () => {
       setNewServiceDesc("");
       setNewServiceStatus("");
       setNewServiceLink("");
-      // Refresh services
       const orgServices = await getServicesFromApi(orgId);
       setServicesState(orgServices);
       setServiceCount(orgServices.length);
@@ -347,44 +310,8 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  const handleScheduleMaintenance = async (maintenanceData: MaintenanceData) => {
-    if (!orgId) return toast.error('No orgId');
-    if (!maintenanceDate || !maintenanceTime || !maintenanceDuration) {
-      toast.error('Please provide date, time, and duration for maintenance.');
-      return;
-    }
-    const start = new Date(maintenanceDate.toDateString() + 'T' + maintenanceTime);
-    if (isNaN(start.getTime())) {
-      toast.error('Invalid start date/time.');
-      return;
-    }
-    const durationMs = parseInt(maintenanceDuration, 10) * 60 * 1000;
-    const end = new Date(start.getTime() + durationMs);
-    try {
-      await scheduleMaintenanceApi({
-        ...maintenanceData,
-        scheduledStart: start.toISOString(),
-        scheduledEnd: end.toISOString(),
-      }, orgId);
-      toast.success('Maintenance scheduled');
-      setMaintenanceDialogOpen(false);
-      setMaintenanceTitle("");
-      setMaintenanceDesc("");
-      setMaintenanceDate(undefined);
-      setMaintenanceTime("");
-      setMaintenanceDuration("");
-      // Refresh incidents and services
-      const orgIncidents = await getIncidentsFromApi(orgId);
-      setIncidentsState(orgIncidents);
-      const orgServices = await getServicesFromApi(orgId);
-      setServicesState(orgServices);
-      setServiceCount(orgServices.length);
-    } catch (err) {
-      toast.error('Failed to schedule maintenance');
-    }
-  };
+  
 
-  // Open edit dialog
   const handleEditService = (svc: Service) => {
     setServiceToEdit(svc);
     setEditName(svc.name);
@@ -394,7 +321,6 @@ const ServicesPage: React.FC = () => {
     setEditDialogOpen(true);
   };
 
-  // Save edited service
   const handleSaveEditService = async () => {
     if (!serviceToEdit) return;
     if (!orgId) return toast.error('No orgId');
@@ -407,7 +333,6 @@ const ServicesPage: React.FC = () => {
         link: editLink,
       }, orgId);
       toast.success('Service updated');
-      // Refresh services
       const orgServices = await getServicesFromApi(orgId);
       setServicesState(orgServices);
       setServiceCount(orgServices.length);
@@ -418,13 +343,11 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  // Delete service
   const handleDeleteService = async (serviceId: number) => {
     if (!orgId) return toast.error('No orgId');
     try {
       await deleteServiceApi(serviceId, orgId);
       toast.success('Service deleted');
-      // Refresh services
       const orgServices = await getServicesFromApi(orgId);
       setServicesState(orgServices);
       setServiceCount(orgServices.length);
@@ -432,7 +355,6 @@ const ServicesPage: React.FC = () => {
       setServiceToEdit(null);
       const newIdx = orgServices.length > 0 ? 0 : -1;
       setSelectedIdx(newIdx);
-      // Update URL param to match new selection
       if (orgServices.length > 0) {
         navigate(`/services/${orgServices[0].id}`, { replace: true });
       } else {
@@ -443,21 +365,8 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  // Open delete incident dialog
-  const handleDeleteIncidentClick = (incident: Incident) => {
-    setIncidentToDelete(incident);
-    setDeleteIncidentDialogOpen(true);
-  };
 
-  // Confirm delete incident
-  const handleConfirmDeleteIncident = async () => {
-    if (!incidentToDelete) return;
-    await handleDeleteIncident(incidentToDelete.id);
-    setDeleteIncidentDialogOpen(false);
-    setIncidentToDelete(null);
-  };
 
-  // Delete update from incident
   const handleDeleteUpdate = (idx: number) => {
     setDeleteUpdateIdx(idx);
   };
@@ -469,7 +378,6 @@ const ServicesPage: React.FC = () => {
       await updateIncidentApi(selectedIncident.id, { updates }, orgId);
       toast.success('Update deleted');
       setDeleteUpdateIdx(null);
-      // Refresh incidents and update local updates
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
       const updatedIncident = orgIncidents.find((i: Incident) => i.id === selectedIncident.id);
@@ -480,13 +388,11 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  // Open delete incident dialog (from drawer)
   const handleDeleteDrawerIncidentClick = () => {
     setIncidentToDelete(selectedIncident);
     setDeleteDrawerIncidentDialogOpen(true);
   };
 
-  // Confirm delete incident (from drawer)
   const handleConfirmDeleteDrawerIncident = async () => {
     if (!incidentToDelete) return;
     await handleDeleteIncident(incidentToDelete.id);
@@ -495,28 +401,13 @@ const ServicesPage: React.FC = () => {
     setDrawerOpen(false);
   };
 
-  // Handler to update a service
-  const handleUpdateService = async (serviceId: number, updateData: Partial<Service>) => {
-    if (!orgId) return toast.error('No orgId');
-    try {
-      await updateServiceApi(serviceId, updateData, orgId);
-      toast.success('Service updated');
-      // Refresh services
-      const orgServices = await getServicesFromApi(orgId);
-      setServicesState(orgServices);
-      setServiceCount(orgServices.length);
-    } catch (err) {
-      toast.error('Failed to update service');
-    }
-  };
+  
 
-  // Handler to delete an incident
   const handleDeleteIncident = async (incidentId: number) => {
     if (!orgId) return toast.error('No orgId');
     try {
       await deleteIncidentApi(incidentId, orgId);
       toast.success('Incident deleted');
-      // Refresh incidents
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
       setDeleteIncidentDialogOpen(false);
@@ -527,19 +418,7 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  // Handler to update an incident
-  const handleUpdateIncident = async (incidentId: number, updateData: Partial<Incident>) => {
-    if (!orgId) return toast.error('No orgId');
-    try {
-      await updateIncidentApi(incidentId, updateData, orgId);
-      toast.success('Incident updated');
-      // Refresh incidents
-      const orgIncidents = await getIncidentsFromApi(orgId);
-      setIncidentsState(orgIncidents);
-    } catch (err) {
-      toast.error('Failed to update incident');
-    }
-  };
+  
 
   if (!service) {
     return <div className="p-6">Service not found.</div>;
@@ -548,7 +427,6 @@ const ServicesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-900">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-        {/* Header Section */}
         <div
           className={`${!isMobile ? "sticky top-0 z-30" : ""} bg-white/80 dark:bg-zinc-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-zinc-900/60 transition-all duration-300 ${scrolled ? "shadow-md py-2" : "shadow-none py-6"}`}
         >
@@ -1324,10 +1202,6 @@ const ServicesPage: React.FC = () => {
             <Button
               onClick={async () => {
                 if (!selectedService) return;
-                console.log('Calling updateServiceApi', selectedService.id, {
-                  ...selectedService,
-                  status: 'under_maintenance',
-                }, orgId || '');
                 await updateServiceApi(selectedService.id, {
                   ...selectedService,
                   status: 'under_maintenance',

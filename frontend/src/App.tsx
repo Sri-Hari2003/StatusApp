@@ -4,6 +4,7 @@ import DashboardPage from './pages/dashboard'
 import ServicesPage from './pages/services'
 import SignInPage from './pages/SignInPage'
 import OnboardingPage from './pages/OnboardingPage'
+import PublicStatusPage from './pages/public'
 import { AppSidebar } from './components/AppSidebar'
 import { SidebarProvider } from './components/ui/sidebar'
 import { SignedIn } from '@clerk/clerk-react'
@@ -49,7 +50,7 @@ function App() {
   const [serviceCount, setServiceCount] = useState(0);
 
   useEffect(() => {
-    if (authLoaded && !isSignedIn && location.pathname !== '/') {
+    if (authLoaded && !isSignedIn && location.pathname !== '/' && location.pathname !== '/public') {
       navigate('/', { replace: true });
     }
   }, [authLoaded, isSignedIn, location.pathname, navigate]);
@@ -68,6 +69,7 @@ function App() {
     <ServiceContext.Provider value={{ serviceCount, setServiceCount }}>
       <Routes>
         <Route path="/" element={<SignInPage />} />
+        <Route path="/public" element={<PublicStatusPage />} />
         <Route
           path="/onboarding"
           element={

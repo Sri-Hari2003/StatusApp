@@ -3,15 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-# api.py
-
 from db import SessionLocal
-# from models import Service as DBService, Incident as DBIncident
 from sqlalchemy.orm import Session
 from models import Service as DBService, Incident as DBIncident
+from clerk import get_org_name_from_clerk
+
 app = FastAPI(title="Status Page API", version="1.0.0")
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,7 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic models
 class ServiceUpdate(BaseModel):
     name: str
     description: str
@@ -61,7 +58,6 @@ class Incident(BaseModel):
     serviceId: int
     updates: List[IncidentUpdate]
 
-# Dependency to get DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -69,13 +65,19 @@ def get_db():
     finally:
         db.close()
 
-# Helper function to get organization ID from headers
 def get_org_id(x_org_id: str = Header(..., alias="X-Org-ID")):
     if not x_org_id:
         raise HTTPException(status_code=400, detail="X-Org-ID header is required")
     return x_org_id
 
-# GET endpoints
+@app.get("/public/org_name/{org_id}")
+async def get_org_name(org_id: str):
+    try:
+        name = await get_org_name_from_clerk(org_id)
+        return { "orgId": org_id, "name": name }
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Org not found: {str(e)}")
+
 @app.get("/services", response_model=List[Service])
 async def get_services(org_id: str = Depends(get_org_id), db: Session = Depends(get_db)):
     services = db.query(DBService).filter(DBService.orgId == org_id).all()
@@ -100,7 +102,6 @@ async def get_incident(incident_id: int, org_id: str = Depends(get_org_id), db: 
         raise HTTPException(status_code=404, detail="Incident not found")
     return incident
 
-# POST endpoints
 @app.post("/services", response_model=Service)
 async def create_service(service: ServiceCreate, org_id: str = Depends(get_org_id), db: Session = Depends(get_db)):
     new_service = DBService(
@@ -118,7 +119,6 @@ async def create_service(service: ServiceCreate, org_id: str = Depends(get_org_i
 
 @app.post("/incidents", response_model=Incident)
 async def create_incident(incident: IncidentCreate, org_id: str = Depends(get_org_id), db: Session = Depends(get_db)):
-    # Verify the service exists and belongs to the organization
     service_exists = db.query(DBService).filter(DBService.id == incident.serviceId, DBService.orgId == org_id).first()
     if not service_exists:
         raise HTTPException(status_code=404, detail="Service not found for this organization")
@@ -135,7 +135,6 @@ async def create_incident(incident: IncidentCreate, org_id: str = Depends(get_or
     db.refresh(new_incident)
     return new_incident
 
-# PUT endpoints
 @app.put("/services/{service_id}", response_model=Service)
 async def updateService(service_id: int, service: ServiceUpdate, org_id: str = Depends(get_org_id), db: Session = Depends(get_db)):
     db_service = db.query(DBService).filter(DBService.id == service_id, DBService.orgId == org_id).first()
@@ -165,13 +164,11 @@ async def updateIncident(incident_id: int, incident: IncidentEdit, org_id: str =
     db.refresh(db_incident)
     return db_incident
 
-# DELETE endpoints
 @app.delete("/services/{service_id}")
 async def deleteService(service_id: int, org_id: str = Depends(get_org_id), db: Session = Depends(get_db)):
     db_service = db.query(DBService).filter(DBService.id == service_id, DBService.orgId == org_id).first()
     if not db_service:
         raise HTTPException(status_code=404, detail="Service not found")
-    # Delete all incidents associated with this service
     db.query(DBIncident).filter(DBIncident.serviceId == service_id, DBIncident.orgId == org_id).delete()
     db.delete(db_service)
     db.commit()
@@ -201,13 +198,10 @@ async def addIncidentUpdate(incident_id: int, update: IncidentUpdate, org_id: st
     db.refresh(db_incident)
     return db_incident
 
-
-# Health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
-# Root endpoint
 @app.get("/")
 async def root():
     return {
@@ -221,6 +215,43 @@ async def root():
         }
     }
 
+@app.get("/public/orgs_services")
+async def get_all_orgs_services_and_incidents(db: Session = Depends(get_db)):
+    all_services = db.query(DBService).all()
+    all_incidents = db.query(DBIncident).all()
+
+    orgs: Dict[str, List[Dict[str, Any]]] = {}
+
+    for service in all_services:
+        service_data = {
+            "id": service.id,
+            "name": service.name,
+            "status": service.status,
+            "description": service.description,
+            "uptime": service.uptime,
+            "link": service.link,
+            "incidents": []
+        }
+
+        for incident in all_incidents:
+            if incident.serviceId == service.id:
+                service_data["incidents"].append({
+                    "id": incident.id,
+                    "title": incident.title,
+                    "status": incident.status,
+                    "created_at": incident.created_at.isoformat(),
+                    "updates": incident.updates
+                })
+
+        if service.orgId not in orgs:
+            orgs[service.orgId] = []
+        orgs[service.orgId].append(service_data)
+
+    return orgs
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    uvicorn.run(app, host=host, port=port)
