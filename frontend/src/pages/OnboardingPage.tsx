@@ -33,33 +33,6 @@ export default function OnboardingPage() {
     { id: 3, title: "Complete", description: "Ready to monitor" }
   ];
 
-  const features = [
-    {
-      title: "Role-based Access",
-      description: "Admins can add, delete, or update data. Members have view-only access."
-    },
-    {
-      title: "Organization Switching (Multi-Tenant Architecture)",
-      description: "Easily switch between or add new organizations. Each organization is isolated using a secure multi-tenant architecture."
-    },
-    {
-      title: "Incident & Service Management",
-      description: "Create, view, and manage incidents and services."
-    },
-    {
-      title: "Charts & Analytics",
-      description: "Visualize incident trends and service health over time."
-    },
-    {
-      title: "Public Status Page",
-      description: "Share your status page publicly with external users."
-    },
-    {
-      title: "Mobile Friendly",
-      description: "Fully responsive design for use on phones and tablets."
-    }
-  ];
-
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -298,57 +271,88 @@ export default function OnboardingPage() {
               <CardContent className="space-y-4">
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Monitor className="w-4 h-4 text-blue-400" />
+                    <Users className="w-4 h-4 text-blue-400" />
                   </div>
                   <div>
-                    <div className="text-white font-medium">Real-time Monitoring</div>
-                    <div className="text-sm text-gray-400">Monitor your services 24/7 with instant alerts</div>
+                    <div className="text-white font-medium">Role-based Access</div>
+                    <div className="text-sm text-gray-400">Admins can add, update, or delete data; members have view-only access.</div>
                   </div>
                 </div>
-                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Organization Switching</div>
+                    <div className="text-sm text-gray-400">Switch between or add new organizations easily.</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Activity className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Incident & Service Management</div>
+                    <div className="text-sm text-gray-400">Create, view, and manage incidents and services for your org.</div>
+                  </div>
+                </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-4 h-4 text-purple-400" />
                   </div>
                   <div>
-                    <div className="text-white font-medium">Advanced Analytics</div>
-                    <div className="text-sm text-gray-400">Detailed insights and performance metrics</div>
+                    <div className="text-white font-medium">Charts & Analytics</div>
+                    <div className="text-sm text-gray-400">Visualize incident trends and service status over time.</div>
                   </div>
                 </div>
-
                 <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Bell className="w-4 h-4 text-green-400" />
+                  <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Monitor className="w-4 h-4 text-yellow-400" />
                   </div>
                   <div>
-                    <div className="text-white font-medium">Smart Alerts</div>
-                    <div className="text-sm text-gray-400">Customizable notifications and escalations</div>
+                    <div className="text-white font-medium">Public Status Page</div>
+                    <div className="text-sm text-gray-400">Share real-time status with external users via a public route.</div>
                   </div>
                 </div>
-
                 <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Users className="w-4 h-4 text-orange-400" />
+                  <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-4 h-4 text-cyan-400" />
                   </div>
                   <div>
-                    <div className="text-white font-medium">Team Collaboration</div>
-                    <div className="text-sm text-gray-400">Invite team members and manage permissions</div>
+                    <div className="text-white font-medium">Mobile Friendly</div>
+                    <div className="text-sm text-gray-400">Fully responsive UI for phones and tablets.</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-pink-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Persistent Organization Selection</div>
+                    <div className="text-sm text-gray-400">Your selected organization is remembered across sessions.</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-lime-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <BarChart3 className="w-4 h-4 text-lime-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Paginated Incident Timeline</div>
+                    <div className="text-sm text-gray-400">Modern, user-friendly paginated timeline for incidents.</div>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gray-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div>
+                    <div className="text-white font-medium">Multi-Tenant Architecture</div>
+                    <div className="text-sm text-gray-400">Strict data isolation and role enforcement for each organization.</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <div className="my-8">
-              <h2 className="text-2xl font-bold mb-4">Key Features</h2>
-              <ul className="space-y-4">
-                {features.map((feature, idx) => (
-                  <li key={idx} className="bg-white dark:bg-zinc-900 rounded-lg shadow p-4">
-                    <div className="font-semibold text-lg text-blue-600 dark:text-blue-400">{feature.title}</div>
-                    <div className="text-gray-700 dark:text-zinc-300 mt-1">{feature.description}</div>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
         </div>
 
