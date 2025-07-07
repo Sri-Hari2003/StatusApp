@@ -33,6 +33,33 @@ export default function OnboardingPage() {
     { id: 3, title: "Complete", description: "Ready to monitor" }
   ];
 
+  const features = [
+    {
+      title: "Role-based Access",
+      description: "Admins can add, delete, or update data. Members have view-only access."
+    },
+    {
+      title: "Organization Switching (Multi-Tenant Architecture)",
+      description: "Easily switch between or add new organizations. Each organization is isolated using a secure multi-tenant architecture."
+    },
+    {
+      title: "Incident & Service Management",
+      description: "Create, view, and manage incidents and services."
+    },
+    {
+      title: "Charts & Analytics",
+      description: "Visualize incident trends and service health over time."
+    },
+    {
+      title: "Public Status Page",
+      description: "Share your status page publicly with external users."
+    },
+    {
+      title: "Mobile Friendly",
+      description: "Fully responsive design for use on phones and tablets."
+    }
+  ];
+
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -311,6 +338,17 @@ export default function OnboardingPage() {
               </CardContent>
             </Card>
 
+            <div className="my-8">
+              <h2 className="text-2xl font-bold mb-4">Key Features</h2>
+              <ul className="space-y-4">
+                {features.map((feature, idx) => (
+                  <li key={idx} className="bg-white dark:bg-zinc-900 rounded-lg shadow p-4">
+                    <div className="font-semibold text-lg text-blue-600 dark:text-blue-400">{feature.title}</div>
+                    <div className="text-gray-700 dark:text-zinc-300 mt-1">{feature.description}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
 
