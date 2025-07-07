@@ -10,8 +10,7 @@ import {
   Users, 
   CheckCircle, 
   Loader2, 
-  Monitor, 
-  BarChart3,
+  Monitor,
   ArrowRight,
   Zap
 } from "lucide-react";
@@ -287,19 +286,6 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Activity className="w-4 h-4 text-green-400" />
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-4 h-4 text-purple-400" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">Charts & Analytics</div>
-                    <div className="text-sm text-gray-400">Visualize incident trends and service status over time.</div>
-                  </div>
-                </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Monitor className="w-4 h-4 text-yellow-400" />
@@ -319,24 +305,7 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="w-4 h-4 text-pink-400" />
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-lime-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-4 h-4 text-lime-400" />
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <div className="w-8 h-8 bg-gray-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">Multi-Tenant Architecture</div>
-                    <div className="text-sm text-gray-400">Strict data isolation and role enforcement for each organization.</div>
-                  </div>
-                </div>
+                 
               </CardContent>
             </Card>
 
