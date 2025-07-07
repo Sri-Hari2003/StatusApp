@@ -286,7 +286,6 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
-                <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Monitor className="w-4 h-4 text-yellow-400" />
                   </div>
@@ -304,8 +303,6 @@ export default function OnboardingPage() {
                     <div className="text-sm text-gray-400">Fully responsive UI for phones and tablets.</div>
                   </div>
                 </div>
-                <div className="flex items-start space-x-3">
-                 
               </CardContent>
             </Card>
 
