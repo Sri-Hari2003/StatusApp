@@ -564,7 +564,8 @@ useEffect(() => {
     );
   }
 
-  const services = selectedOrg ? data[selectedOrg] : [];
+  // Ensure services is always an array
+  const services = selectedOrg && Array.isArray(data[selectedOrg]) ? data[selectedOrg] : [];
   const overallStatus = getOverallStatus(services);
   const metrics = getMetrics(services);
 
