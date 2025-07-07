@@ -11,8 +11,7 @@ import {
   CheckCircle, 
   Loader2, 
   Monitor, 
-  BarChart3, 
-  Bell,
+  BarChart3,
   ArrowRight,
   Zap
 } from "lucide-react";
