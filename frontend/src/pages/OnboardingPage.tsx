@@ -290,10 +290,6 @@ export default function OnboardingPage() {
                   <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Activity className="w-4 h-4 text-green-400" />
                   </div>
-                  <div>
-                    <div className="text-white font-medium">Incident & Service Management</div>
-                    <div className="text-sm text-gray-400">Create, view, and manage incidents and services for your org.</div>
-                  </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -326,18 +322,10 @@ export default function OnboardingPage() {
                   <div className="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <CheckCircle className="w-4 h-4 text-pink-400" />
                   </div>
-                  <div>
-                    <div className="text-white font-medium">Persistent Organization Selection</div>
-                    <div className="text-sm text-gray-400">Your selected organization is remembered across sessions.</div>
-                  </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-lime-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-4 h-4 text-lime-400" />
-                  </div>
-                  <div>
-                    <div className="text-white font-medium">Paginated Incident Timeline</div>
-                    <div className="text-sm text-gray-400">Modern, user-friendly paginated timeline for incidents.</div>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
