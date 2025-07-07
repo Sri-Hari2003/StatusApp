@@ -101,3 +101,27 @@ StatusApp/
 
 ## License
 MIT 
+
+## Deployment Details
+
+### Frontend
+- **Main App:** [https://dynamic-caramel-218f6b.netlify.app/](https://dynamic-caramel-218f6b.netlify.app/)
+- **Public Status Page:** [https://dynamic-caramel-218f6b.netlify.app/public](https://dynamic-caramel-218f6b.netlify.app/public)
+- **Mobile Friendly:** The frontend is fully responsive and mobile-friendly for use on phones and tablets.
+
+### Backend
+- **API:** [https://statusapp-k9vg.onrender.com](https://statusapp-k9vg.onrender.com)
+    - Endpoints: `/services`, `/incidents`, `/ws`, `/ws/{org_id}`, `/docs`, `/health`
+    - **Note:** Due to inactivity, the first reload can take up to 120 seconds (cold start).
+
+### User Roles
+- Users can be **admin** or **member** of an organization.
+    - **Admin:** Can add and delete or update data (services, incidents, updates etc.).
+    - **Member:** Has restricted access (view only, cannot add/delete data).
+
+### Organization Features
+- **Organization switching** is possible within the app.
+- **Adding new organizations** is supported.
+
+---
+For more details, see the respective frontend and backend directories. 
