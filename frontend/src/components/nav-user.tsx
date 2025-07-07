@@ -1,9 +1,6 @@
 "use client"
 import { useAuth } from "@clerk/clerk-react";
-import { useSignIn } from "@clerk/clerk-react";
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
   LogOut,
   LogIn,
@@ -17,7 +14,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,

@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { ChevronsUpDown, Plus } from "lucide-react"
 import {
   DropdownMenu,
@@ -20,11 +19,12 @@ import { useOrganizationList } from "@clerk/clerk-react"
 
 export function TeamSwitcher() {
   const { isMobile } = useSidebar()
-  const { organizationList, setActive, isLoaded } = useOrganizationList()
+  const { userMemberships, setActive, isLoaded } = useOrganizationList()
 
-  if (!isLoaded || !organizationList) return null
+  if (!isLoaded || !userMemberships?.data) return null
 
-  const activeOrg = organizationList.find((org) => org?.membership?.role !== undefined)
+  const organizationList = userMemberships.data
+  const activeOrg = organizationList.find((org: any) => org?.role !== undefined)
 
   return (
     <SidebarMenu>
@@ -43,7 +43,7 @@ export function TeamSwitcher() {
                   {activeOrg?.organization.name}
                 </span>
                 <span className="truncate text-xs capitalize">
-                  {activeOrg?.membership.role}
+                  {activeOrg?.role}
                 </span>
               </div>
               <ChevronsUpDown className="ml-auto" />
@@ -59,7 +59,7 @@ export function TeamSwitcher() {
               Your Organizations
             </DropdownMenuLabel>
 
-            {organizationList.map((org, index) => (
+            {organizationList.map((org: any) => (
               <DropdownMenuItem
                 key={org.organization.id}
                 onClick={() => setActive({ organization: org.organization.id })}

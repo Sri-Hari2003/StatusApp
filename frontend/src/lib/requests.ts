@@ -42,7 +42,7 @@ export interface Update {
 }
 
 // Set your backend base URL here
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Service Management Functions
 export const createService = (

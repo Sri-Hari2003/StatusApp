@@ -1,24 +1,24 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, Cell } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle, Wrench, Calendar } from "lucide-react";
+import { TrendingUp, Pencil, Clock, Eye, CheckCircle2, AlertTriangle, Wrench } from "lucide-react";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { toast } from 'sonner';
 import { OrgRoleBasedAccess } from "@/components/AccessWrapper";
-import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription, DrawerClose } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerFooter, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile"
 import { useAuth } from "@clerk/clerk-react";
 import { useServiceCount } from "../App";
-import { 
-  hasScheduledMaintenance, 
+import {
+  hasScheduledMaintenance,
   getMaintenanceInfo,
   type Service,
   type Incident,
@@ -70,7 +70,7 @@ const ServicesPage: React.FC = () => {
   const navigate = useNavigate();
   const [servicesState, setServicesState] = useState<Service[]>([]);
   const [incidentsState, setIncidentsState] = useState<Incident[]>([]);
-  
+
   useEffect(() => {
     async function fetchData() {
       if (orgId) {
@@ -117,8 +117,7 @@ const ServicesPage: React.FC = () => {
   const [editUpdateStatus, setEditUpdateStatus] = useState<string>("");
   const [newUpdateDesc, setNewUpdateDesc] = useState("");
   const [newUpdateStatus, setNewUpdateStatus] = useState<string>("");
-  const leftColRef = useRef<HTMLDivElement>(null);
-  const [leftColHeight, setLeftColHeight] = useState<number | undefined>(undefined);
+
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDesc, setNewServiceDesc] = useState("");
@@ -133,12 +132,12 @@ const ServicesPage: React.FC = () => {
   const [editDesc, setEditDesc] = useState('');
   const [editStatus, setEditStatus] = useState('');
   const [editLink, setEditLink] = useState('');
-  const [deleteIncidentDialogOpen, setDeleteIncidentDialogOpen] = useState(false);
+
   const [incidentToDelete, setIncidentToDelete] = useState<Incident | null>(null);
   const [deleteUpdateIdx, setDeleteUpdateIdx] = useState<number | null>(null);
   const [deleteDrawerIncidentDialogOpen, setDeleteDrawerIncidentDialogOpen] = useState(false);
   const [confirmMaintenanceOpen, setConfirmMaintenanceOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedService] = useState<Service | null>(null);
 
   const service = servicesState[selectedIdx];
   const incidents = service
@@ -147,16 +146,7 @@ const ServicesPage: React.FC = () => {
 
   const filteredIncidents = incidentFilter === 'active' ? incidents.filter((inc: Incident) => inc.status !== 'resolved') : incidents;
 
-  useLayoutEffect(() => {
-    const measureHeight = () => {
-      if (leftColRef.current) {
-        setLeftColHeight(leftColRef.current.offsetHeight);
-      }
-    };
-    measureHeight();
-    window.addEventListener("resize", measureHeight);
-    return () => window.removeEventListener("resize", measureHeight);
-  }, [incidents.length, selectedIdx]);
+
 
   React.useEffect(() => {
     const api = emblaApiRef.current;
@@ -310,7 +300,7 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  
+
 
   const handleEditService = (svc: Service) => {
     setServiceToEdit(svc);
@@ -401,7 +391,7 @@ const ServicesPage: React.FC = () => {
     setDrawerOpen(false);
   };
 
-  
+
 
   const handleDeleteIncident = async (incidentId: number) => {
     if (!orgId) return toast.error('No orgId');
@@ -410,7 +400,7 @@ const ServicesPage: React.FC = () => {
       toast.success('Incident deleted');
       const orgIncidents = await getIncidentsFromApi(orgId);
       setIncidentsState(orgIncidents);
-      setDeleteIncidentDialogOpen(false);
+
       setIncidentToDelete(null);
       setDrawerOpen(false);
     } catch (err) {
@@ -418,7 +408,7 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  
+
 
   if (!service) {
     return <div className="p-6">Service not found.</div>;
@@ -582,7 +572,7 @@ const ServicesPage: React.FC = () => {
                   <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">Browse through available services</p>
                 </div>
               </div>
-              
+
               <div className="w-full">
                 <Carousel
                   opts={{ loop: false, startIndex: initialIdx }}
@@ -593,7 +583,7 @@ const ServicesPage: React.FC = () => {
                     {servicesState.map((svc, idx) => {
                       const maintenanceInfo = getMaintenanceInfo(svc.id, incidentsState);
                       const hasMaintenance = hasScheduledMaintenance(svc.id, incidentsState);
-                      
+
                       return (
                         <CarouselItem key={svc.id} className="flex justify-center items-stretch overflow-visible">
                           <Card className={`w-full max-w-sm px-4 py-3 flex flex-col justify-center overflow-visible transition-all duration-300 hover:shadow-lg border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:border-blue-900 dark:hover:bg-blue-900 ${selectedIdx === idx ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-zinc-200 bg-white dark:bg-zinc-900'}`}>
@@ -626,10 +616,10 @@ const ServicesPage: React.FC = () => {
                                 <>
                                   <Separator className="my-2" />
                                   <div className="pt-1">
-                                    <a 
-                                      href={svc.link} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
+                                    <a
+                                      href={svc.link}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="text-blue-600 hover:text-blue-800 underline text-xs font-medium transition-colors block truncate"
                                     >
                                       {svc.link}
@@ -763,9 +753,9 @@ const ServicesPage: React.FC = () => {
                             {new Date(incident.created_at).toLocaleDateString()}
                           </p>
                         </div>
-                        
+
                         <Separator />
-                      
+
                         <div>
                           <div className="font-medium text-sm mb-3 text-gray-900 dark:text-zinc-100">Recent Updates</div>
                           <div className="space-y-3 max-h-32 overflow-y-auto">
@@ -774,8 +764,8 @@ const ServicesPage: React.FC = () => {
                                 <div
                                   key={idx}
                                   className={`rounded-lg p-3 text-xs border-l-4 transition-colors 
-                                    ${update.status === 'resolved' 
-                                      ? 'border-l-green-500 bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200' 
+                                    ${update.status === 'resolved'
+                                      ? 'border-l-green-500 bg-green-50 dark:bg-green-900 text-green-800 dark:text-green-200'
                                       : 'border-l-gray-300 dark:border-l-zinc-700 bg-gray-50 dark:bg-zinc-900 text-gray-700 dark:text-zinc-200'}`}
                                 >
                                   <div className="flex items-center gap-2 mb-2">
@@ -824,15 +814,14 @@ const ServicesPage: React.FC = () => {
                     {localUpdates.length > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-600 dark:text-zinc-400 font-medium">Current Status:</span>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                          localUpdates[localUpdates.length - 1].status === 'resolved'
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${localUpdates[localUpdates.length - 1].status === 'resolved'
                             ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                             : localUpdates[localUpdates.length - 1].status === 'investigating'
-                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                            : localUpdates[localUpdates.length - 1].status === 'identified'
-                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        }`}>
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              : localUpdates[localUpdates.length - 1].status === 'identified'
+                                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                                : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          }`}>
                           {statusIcons[localUpdates[localUpdates.length - 1].status as keyof typeof statusIcons]}
                           <span className="ml-1 capitalize">{localUpdates[localUpdates.length - 1].status}</span>
                         </span>
@@ -843,7 +832,7 @@ const ServicesPage: React.FC = () => {
               )}
             </DrawerDescription>
           </DrawerHeader>
-          
+
           {selectedIncident && (
             <div className="px-6 pb-6 overflow-y-auto bg-gray-50 dark:bg-zinc-900">
               <div className="space-y-6 py-6">
@@ -865,11 +854,10 @@ const ServicesPage: React.FC = () => {
                         const isEditing = editingUpdateIdx === realIdx;
                         const isFirst = i === 0;
                         return (
-                          <div key={i} className={`relative border rounded-xl p-4 transition-all duration-300 ${
-                            u.status === 'resolved' 
-                              ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800' 
+                          <div key={i} className={`relative border rounded-xl p-4 transition-all duration-300 ${u.status === 'resolved'
+                              ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800'
                               : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-zinc-800 dark:to-zinc-700 border-gray-200 dark:border-zinc-700'
-                          } ${isFirst ? ' ' : ''}`}>
+                            } ${isFirst ? ' ' : ''}`}>
                             {/* Timeline connector */}
                             {i < arr.length - 1 && (
                               <div className="absolute -bottom-3 left-6 w-0.5 h-3 bg-gray-300 dark:bg-zinc-600"></div>
@@ -940,9 +928,9 @@ const ServicesPage: React.FC = () => {
                                     <Button size="sm" variant="outline" onClick={handleCancelEdit} className="rounded-lg">
                                       Cancel
                                     </Button>
-                                    <Button 
-                                      size="sm" 
-                                      onClick={() => handleSaveEdit(realIdx)} 
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSaveEdit(realIdx)}
                                       disabled={!editUpdateDesc || !editUpdateStatus}
                                       className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
                                     >
@@ -979,11 +967,11 @@ const ServicesPage: React.FC = () => {
                                       </div>
                                     </div>
                                   </div>
-                                  
-                                  <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    onClick={() => handleEditUpdate(realIdx, u)} 
+
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditUpdate(realIdx, u)}
                                     className="shrink-0 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg p-2"
                                   >
                                     <Pencil className="w-4 h-4 text-gray-600 dark:text-zinc-400" />
@@ -1070,8 +1058,8 @@ const ServicesPage: React.FC = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                          <Button 
-                            onClick={handleSaveUpdate} 
+                          <Button
+                            onClick={handleSaveUpdate}
                             disabled={!newUpdateDesc || !newUpdateStatus}
                             className="w-full h-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-xl shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -1092,7 +1080,7 @@ const ServicesPage: React.FC = () => {
               </div>
             </div>
           )}
-          
+
           <DrawerFooter className="border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
             {/* Footer content can be added here if needed */}
           </DrawerFooter>

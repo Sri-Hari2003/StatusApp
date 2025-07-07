@@ -19,11 +19,9 @@ export const description = "An interactive area chart"
 type AreaChartIncidentsProps = {
   chartData: any[];
   chartConfig: Record<string, { label: string; color: string }>;
-  chartRange: string;
-  setChartRange: (v: string) => void;
 };
 
-const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, chartConfig, chartRange, setChartRange }) => {
+const AreaChartIncidents: React.FC<AreaChartIncidentsProps> = ({ chartData, chartConfig }) => {
   // Get all service keys (excluding 'date')
   const serviceKeys = Object.keys(chartConfig);
 

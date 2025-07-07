@@ -14,8 +14,6 @@ import {
   BarChart3, 
   Bell,
   ArrowRight,
-  Globe,
-  Shield,
   Zap
 } from "lucide-react";
 

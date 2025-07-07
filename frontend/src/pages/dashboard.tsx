@@ -63,9 +63,7 @@ const DashboardPage: React.FC = () => {
     const INCIDENTS_PER_PAGE = 3;
     const [chartRange, setChartRange] = useState("7d");
     const [activeServiceFilter, setActiveServiceFilter] = useState<string>("all");
-    const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState<any>(null);
-    const [localUpdates, setLocalUpdates] = useState<any[]>([]);
     const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
     const [newIncidentName, setNewIncidentName] = useState("");
     const [newIncidentService, setNewIncidentService] = useState("");
@@ -179,11 +177,7 @@ const DashboardPage: React.FC = () => {
 
     const handleIncidentClick = (incident: any) => {
         setSelectedIncident(incident);
-        setLocalUpdates(incident.updates);
-        setDrawerOpen(true);
     };
-
-
 
     const handleCreateIncident = async () => {
         if (!orgId) return toast.error('No orgId');
@@ -237,7 +231,6 @@ const DashboardPage: React.FC = () => {
             toast.error('Failed to create service');
         }
     };
-
 
     // Count services under maintenance
     const servicesUnderMaintenance = services.filter(s => s.status === 'under_maintenance');
@@ -599,8 +592,6 @@ const DashboardPage: React.FC = () => {
                                 <AreaChartIncidents
                                     chartData={chartData}
                                     chartConfig={chartConfig}
-                                    chartRange={chartRange}
-                                    setChartRange={setChartRange}
                                 />
                             </div>
                         </div>

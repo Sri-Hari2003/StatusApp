@@ -1,16 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Clock, ExternalLink, Zap, TrendingUp, Activity, Shield, Globe } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { AlertCircle, CheckCircle, Clock, ExternalLink, Zap, TrendingUp, Activity, Shield, Globe, Wifi, WifiOff } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '../components/ui/dropdown-menu';
-import { Button as ShadButton } from '../components/ui/button';
+import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
+import { Button } from '@/components/ui/button';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL;
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
 interface Incident {
   id: number;
   title: string;
@@ -33,11 +29,12 @@ interface OrgsServices {
   [orgId: string]: Service[];
 }
 
-const Button = ({ onClick, className, children }: { onClick: () => void; className: string; children: React.ReactNode }) => (
-  <button onClick={onClick} className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${className}`}>
-    {children}
-  </button>
-);
+interface WebSocketMessage {
+  type: string;
+  orgId: string;
+  data: any;
+  timestamp: string;
+}
 
 const StatusBadge = ({ status }: { status: string }) => {
   const getStatusConfig = (status: string) => {
@@ -103,7 +100,7 @@ const IncidentsChart = ({ services }: { services: Service[] }) => {
     status: service.status.toLowerCase()
   }));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -153,33 +150,241 @@ const IncidentsChart = ({ services }: { services: Service[] }) => {
   );
 };
 
+const ConnectionStatus = ({ connected }: { connected: boolean }) => (
+  <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+    connected 
+      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+      : 'bg-red-500/20 text-red-300 border border-red-500/30'
+  }`}>
+    {connected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+    <span>{connected ? 'Live' : 'Disconnected'}</span>
+  </div>
+);
+
+const useWebSocket = (url: string) => {
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttempts = useRef(0);
+
+  const connect = () => {
+    try {
+      const ws = new WebSocket(url);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setConnected(true);
+        reconnectAttempts.current = 0;
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setLastMessage(data);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        setConnected(false);
+        setSocket(null);
+        
+        // Attempt to reconnect with exponential backoff
+        if (reconnectAttempts.current < 5) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+          reconnectTimeout.current = setTimeout(() => {
+            reconnectAttempts.current++;
+            connect();
+          }, delay);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setConnected(false);
+      };
+
+      setSocket(ws);
+    } catch (error) {
+      console.error('Error creating WebSocket:', error);
+      setConnected(false);
+    }
+  };
+
+  useEffect(() => {
+    connect();
+    
+    return () => {
+      if (reconnectTimeout.current) {
+        clearTimeout(reconnectTimeout.current);
+      }
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, [url]);
+
+  return { socket, connected, lastMessage };
+
+};
+
 export default function PublicStatusPage() {
   const [data, setData] = useState<OrgsServices>({});
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(() => localStorage.getItem('selectedOrg'));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [orgNames, setOrgNames] = useState<{ [orgId: string]: string }>({});
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [incidentPages, setIncidentPages] = useState<{ [serviceId: number]: number }>({});
+  const INCIDENTS_PER_PAGE = 3;
+
+  // WebSocket connection
+  const { connected, lastMessage } = useWebSocket(selectedOrg ? `${WS_BASE_URL}/ws/${selectedOrg}` : '');
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/public/orgs_services`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const json = await res.json();
+      setData(json);
+      const orgIds = Object.keys(json);
+      if (orgIds.length > 0 && !selectedOrg) {
+        setSelectedOrg(orgIds[0]);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Could not load data.');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE_URL}/public/orgs_services`)
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
-      .then(json => {
-        setData(json);
-        const orgIds = Object.keys(json);
-        if (orgIds.length > 0) setSelectedOrg(orgIds[0]);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Fetch error:', err);
-        setError('Could not load data.');
-        setLoading(false);
-      });
+    fetchData();
   }, []);
+  // Enhanced WebSocket message handler with organization name and detailed updates
+useEffect(() => {
+    if (lastMessage) {
+      console.log('Received WebSocket message:', lastMessage);
+      setLastUpdate(new Date().toLocaleTimeString());
+      
+      // Get the organization name for the toast (use current state, not dependency)
+      const currentOrgName = orgNames[lastMessage.orgId] || lastMessage.orgId;
+      
+      // Create detailed toast messages based on message type
+      const getToastMessage = (message: WebSocketMessage) => {
+        const timestamp = message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : '';
+        
+        switch (message.type) {
+          case 'service_created':
+            return {
+              title: `New Service Added - ${currentOrgName}`,
+              description: `${message.data?.name || 'Service'} has been created`,
+              type: 'success'
+            };
+          
+          case 'service_updated':
+            return {
+              title: `Service Updated - ${currentOrgName}`,
+              description: `${message.data?.name || 'Service'} was updated`,
+              type: 'info'
+            };
+          
+          case 'service_deleted':
+            return {
+              title: `Service Removed - ${currentOrgName}`,
+              description: `${message.data?.name || 'Service'} has been deleted`,
+              type: 'warning'
+            };
+          
+          case 'incident_created':
+            return {
+              title: `New Incident - ${currentOrgName}`,
+              description: `${message.data?.title || 'Incident'} reported for ${message.data?.service_name || 'service'}`,
+              type: 'error'
+            };
+          
+          case 'incident_updated':
+            return {
+              title: `Incident Updated - ${currentOrgName}`,
+              description: `${message.data?.title || 'Incident'} status: ${message.data?.status || 'updated'}`,
+              type: 'info'
+            };
+          
+          case 'incident_deleted':
+            return {
+              title: `Incident Resolved - ${currentOrgName}`,
+              description: `${message.data?.title || 'Incident'} has been resolved`,
+              type: 'success'
+            };
+          
+          case 'incident_update_added':
+            return {
+              title: `Incident Update - ${currentOrgName}`,
+              description: `New update added to ${message.data?.incident_title || 'incident'}`,
+              type: 'info'
+            };
+          
+          default:
+            return {
+              title: `Update - ${currentOrgName}`,
+              description: `${message.type} event received${timestamp ? ` at ${timestamp}` : ''}`,
+              type: 'info'
+            };
+        }
+      };
+      
+      const toastConfig = getToastMessage(lastMessage);
+      
+      // Show appropriate toast based on message type
+      switch (toastConfig.type) {
+        case 'success':
+          toast.success(toastConfig.title, {
+            description: toastConfig.description,
+            duration: 4000,
+          });
+          break;
+        case 'error':
+          toast.error(toastConfig.title, {
+            description: toastConfig.description,
+            duration: 6000,
+          });
+          break;
+        case 'warning':
+          toast.warning(toastConfig.title, {
+            description: toastConfig.description,
+            duration: 5000,
+          });
+          break;
+        default:
+          toast.info(toastConfig.title, {
+            description: toastConfig.description,
+            duration: 3000,
+          });
+      }
+      
+      // Handle different message types for data refresh
+      switch (lastMessage.type) {
+        case 'service_created':
+        case 'service_updated':
+        case 'service_deleted':
+        case 'incident_created':
+        case 'incident_updated':
+        case 'incident_deleted':
+        case 'incident_update_added':
+          // Refresh data when any change occurs
+          fetchData();
+          break;
+        default:
+          console.log('Unknown message type:', lastMessage.type);
+      }
+    }
+  }, [lastMessage]); 
 
   useEffect(() => {
     if (selectedOrg) {
@@ -214,6 +419,13 @@ export default function PublicStatusPage() {
     }
   }, [data]);
 
+  // Persist selectedOrg to localStorage on change
+  useEffect(() => {
+    if (selectedOrg) {
+      localStorage.setItem('selectedOrg', selectedOrg);
+    }
+  }, [selectedOrg]);
+
   const handleGetStarted = () => {
     window.location.href = '/';
   };
@@ -242,6 +454,25 @@ export default function PublicStatusPage() {
     return 'All Systems Operational';
   };
 
+  // Helper to get paginated incidents for a service
+  const getPaginatedIncidents = (service: Service) => {
+    const page = incidentPages[service.id] || 1;
+    const sorted = [...service.incidents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const start = (page - 1) * INCIDENTS_PER_PAGE;
+    const end = start + INCIDENTS_PER_PAGE;
+    return sorted.slice(start, end);
+  };
+
+  // Helper to get total pages for a service
+  const getTotalIncidentPages = (service: Service) => {
+    return Math.max(1, Math.ceil(service.incidents.length / INCIDENTS_PER_PAGE));
+  };
+
+  // Handler for pagination
+  const handleIncidentPageChange = (serviceId: number, newPage: number) => {
+    setIncidentPages((prev) => ({ ...prev, [serviceId]: newPage }));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -254,9 +485,12 @@ export default function PublicStatusPage() {
                 </div>
                 <h1 className="text-3xl font-bold text-white">Status Dashboard</h1>
               </div>
+              <div className="flex items-center space-x-4">
+                <ConnectionStatus connected={connected} />
               <Button onClick={handleGetStarted} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg shadow-lg">
                 Get Started
               </Button>
+              </div>
             </div>
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent"></div>
@@ -280,9 +514,12 @@ export default function PublicStatusPage() {
                 </div>
                 <h1 className="text-3xl font-bold text-white">Status Dashboard</h1>
               </div>
+              <div className="flex items-center space-x-4">
+                <ConnectionStatus connected={connected} />
               <Button onClick={handleGetStarted} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg shadow-lg">
                 Get Started
               </Button>
+              </div>
             </div>
             <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 backdrop-blur-sm">
               <div className="flex items-center">
@@ -309,9 +546,12 @@ export default function PublicStatusPage() {
                 </div>
                 <h1 className="text-3xl font-bold text-white">Status Dashboard</h1>
               </div>
+              <div className="flex items-center space-x-4">
+                <ConnectionStatus connected={connected} />
               <Button onClick={handleGetStarted} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg shadow-lg">
                 Get Started
               </Button>
+              </div>
             </div>
             <div className="text-center py-12">
               <div className="text-slate-400 text-6xl mb-4">🏢</div>
@@ -324,12 +564,13 @@ export default function PublicStatusPage() {
     );
   }
 
-  const orgOptions = orgIds.map(orgId => ({ id: orgId, name: orgNames[orgId] || orgId }));
   const services = selectedOrg ? data[selectedOrg] : [];
   const overallStatus = getOverallStatus(services);
   const metrics = getMetrics(services);
 
   return (
+    <>
+      <Toaster />
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto p-6">
         <div className="bg-slate-800/30 backdrop-blur-sm rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
@@ -343,44 +584,44 @@ export default function PublicStatusPage() {
                   </div>
                   <h1 className="text-3xl font-bold">Status Dashboard</h1>
                 </div>
+                  <div className="flex items-center space-x-4">
+                    <ConnectionStatus connected={connected} />
                 <Button onClick={handleGetStarted} className="bg-white/20 hover:bg-white/30 text-white border border-white/30 px-6 py-3 rounded-lg font-medium backdrop-blur-sm transition-all">
                   Get Started
                 </Button>
+                  </div>
               </div>
               
               <div className="mb-6">
                 <label htmlFor="org-select" className="block text-sm font-medium text-blue-100 mb-2">
                   Select Organization
                 </label>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <ShadButton variant="outline" className="min-w-[200px] flex justify-between items-center">
-                      {orgName || 'Select organization'}
-                      <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                    </ShadButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-[200px]">
-                    {orgOptions.map(org => (
-                      <DropdownMenuItem
-                        key={org.id}
-                        onSelect={() => setSelectedOrg(org.id)}
-                        className={
-                          (selectedOrg === org.id ? 'bg-blue-500/10 text-blue-400' : '') +
-                          ' cursor-pointer'
-                        }
-                      >
-                        {org.name}
-                      </DropdownMenuItem>
+                  <select
+                    id="org-select"
+                    value={selectedOrg || ''}
+                    onChange={(e) => setSelectedOrg(e.target.value)}
+                    className="bg-white/20 border border-white/30 rounded-lg px-4 py-2 text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur-sm"
+                  >
+                    {orgIds.map(orgId => (
+                      <option key={orgId} value={orgId} className="bg-slate-800 text-white">
+                        {orgNames[orgId] || orgId}
+                      </option>
                     ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </select>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold">{orgName || 'Organization'}</h2>
-                    <p className="text-blue-100 text-sm">Current system status</p>
+                      <p className="text-blue-100 text-sm">
+                        Current system status
+                        {lastUpdate && (
+                          <span className="ml-2 text-blue-200/80">
+                            • Last updated: {lastUpdate}
+                          </span>
+                        )}
+                      </p>
                   </div>
                   <StatusBadge status={overallStatus} />
                 </div>
@@ -463,9 +704,7 @@ export default function PublicStatusPage() {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {[...service.incidents]
-                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                          .map(incident => (
+                          {getPaginatedIncidents(service).map(incident => (
                           <div key={incident.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600/50 backdrop-blur-sm">
                             <div className="flex items-center justify-between mb-2">
                               <h5 className="font-medium text-white">{incident.title}</h5>
@@ -502,6 +741,74 @@ export default function PublicStatusPage() {
                             )}
                           </div>
                         ))}
+                          {/* Pagination controls */}
+                          {getTotalIncidentPages(service) > 1 && (
+                            <div className="flex items-center justify-between mt-4">
+                              <div className="text-sm text-slate-300">
+                                Showing {((incidentPages[service.id] || 1) - 1) * INCIDENTS_PER_PAGE + 1} to {Math.min((incidentPages[service.id] || 1) * INCIDENTS_PER_PAGE, service.incidents.length)} of {service.incidents.length} incidents
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleIncidentPageChange(service.id, Math.max(1, (incidentPages[service.id] || 1) - 1))}
+                                  disabled={(incidentPages[service.id] || 1) === 1}
+                                >
+                                  Previous
+                                </Button>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: Math.min(5, getTotalIncidentPages(service)) }, (_, i) => {
+                                    const pageNum = i + 1;
+                                    return (
+                                      <Button
+                                        key={pageNum}
+                                        variant={(incidentPages[service.id] || 1) === pageNum ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleIncidentPageChange(service.id, pageNum)}
+                                        className="w-8 h-8 p-0"
+                                      >
+                                        {pageNum}
+                                      </Button>
+                                    );
+                                  })}
+                                  {getTotalIncidentPages(service) > 5 && (
+                                    <>
+                                      {(incidentPages[service.id] || 1) > 3 && <span className="text-slate-400">...</span>}
+                                      {(incidentPages[service.id] || 1) > 3 && (incidentPages[service.id] || 1) < getTotalIncidentPages(service) - 2 && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-8 h-8 p-0"
+                                          disabled
+                                        >
+                                          {(incidentPages[service.id] || 1)}
+                                        </Button>
+                                      )}
+                                      {(incidentPages[service.id] || 1) < getTotalIncidentPages(service) - 2 && <span className="text-slate-400">...</span>}
+                                      {(incidentPages[service.id] || 1) < getTotalIncidentPages(service) - 2 && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleIncidentPageChange(service.id, getTotalIncidentPages(service))}
+                                          className="w-8 h-8 p-0"
+                                        >
+                                          {getTotalIncidentPages(service)}
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleIncidentPageChange(service.id, Math.min(getTotalIncidentPages(service), (incidentPages[service.id] || 1) + 1))}
+                                  disabled={(incidentPages[service.id] || 1) === getTotalIncidentPages(service)}
+                                >
+                                  Next
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>
@@ -512,5 +819,6 @@ export default function PublicStatusPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
