@@ -96,7 +96,7 @@ const IncidentsChart = ({ services }: { services: Service[] }) => {
   const chartData = services.map(service => ({
     name: service.name.length > 12 ? service.name.substring(0, 12) + '...' : service.name,
     fullName: service.name,
-    incidents: service.incidents.length,
+    incidents: (service.incidents || []).length,
     status: service.status.toLowerCase()
   }));
 
@@ -435,7 +435,7 @@ useEffect(() => {
     const operationalServices = services.filter(s => 
       s.status.toLowerCase().includes('operational') || s.status.toLowerCase().includes('active')
     ).length;
-    const totalIncidents = services.reduce((sum, service) => sum + service.incidents.length, 0);
+    const totalIncidents = services.reduce((sum, service) => sum + (service.incidents || []).length, 0);
     const avgUptime = services.length > 0 
       ? (services.reduce((sum, service) => sum + parseFloat(service.uptime.replace('%', '')), 0) / services.length).toFixed(1)
       : '0';
@@ -457,7 +457,7 @@ useEffect(() => {
   // Helper to get paginated incidents for a service
   const getPaginatedIncidents = (service: Service) => {
     const page = incidentPages[service.id] || 1;
-    const sorted = [...service.incidents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const sorted = [...(service.incidents || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     const start = (page - 1) * INCIDENTS_PER_PAGE;
     const end = start + INCIDENTS_PER_PAGE;
     return sorted.slice(start, end);
@@ -465,7 +465,7 @@ useEffect(() => {
 
   // Helper to get total pages for a service
   const getTotalIncidentPages = (service: Service) => {
-    return Math.max(1, Math.ceil(service.incidents.length / INCIDENTS_PER_PAGE));
+    return Math.max(1, Math.ceil(((service.incidents || []).length) / INCIDENTS_PER_PAGE));
   };
 
   // Handler for pagination
@@ -745,7 +745,7 @@ useEffect(() => {
                           {getTotalIncidentPages(service) > 1 && (
                             <div className="flex items-center justify-between mt-4">
                               <div className="text-sm text-slate-300">
-                                Showing {((incidentPages[service.id] || 1) - 1) * INCIDENTS_PER_PAGE + 1} to {Math.min((incidentPages[service.id] || 1) * INCIDENTS_PER_PAGE, service.incidents.length)} of {service.incidents.length} incidents
+                                Showing {((incidentPages[service.id] || 1) - 1) * INCIDENTS_PER_PAGE + 1} to {Math.min((incidentPages[service.id] || 1) * INCIDENTS_PER_PAGE, (service.incidents || []).length)} of {service.incidents.length} incidents
                               </div>
                               <div className="flex items-center gap-2">
                                 <Button
