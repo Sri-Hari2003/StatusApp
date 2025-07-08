@@ -113,6 +113,8 @@ MIT
 - **API:** [https://statusapp-k9vg.onrender.com](https://statusapp-k9vg.onrender.com)
     - Endpoints: `/services`, `/incidents`, `/ws`, `/ws/{org_id}`, `/docs`, `/health`
     - **Note:** Due to inactivity, the first reload can take up to 120 seconds (cold start).
+ 
+    - Clerk is currently running in development mode as the app is still in the demo/testing phase.
 
 ### User Roles
 - Users can be **admin** or **member** of an organization.
