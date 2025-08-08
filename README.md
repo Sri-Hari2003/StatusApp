@@ -114,6 +114,8 @@ MIT
     - Endpoints: `/services`, `/incidents`, `/ws`, `/ws/{org_id}`, `/docs`, `/health`
     - **Note:** Due to inactivity, the first reload can take up to 120 seconds (cold start).
 
+Clerk is currently running in development mode as the app is still in the demo/testing phase.
+
 ### User Roles
 - Users can be **admin** or **member** of an organization.
     - **Admin:** Can add and delete or update data (services, incidents, updates etc.).
